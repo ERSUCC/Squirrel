@@ -1,14 +1,22 @@
 #pragma once
 
 #include <chrono>
+#include <fstream>
+#include <iostream>
 #include <mutex>
+#include <sstream>
 
 #include <SDL.h>
+
+#include "network.h"
 
 struct GUI
 {
     GUI();
     ~GUI();
+
+    void setupEmpty();
+    void setupSend(const std::string path);
 
     void run();
     void render();
@@ -24,6 +32,8 @@ private:
 
     std::chrono::high_resolution_clock clock;
     std::chrono::time_point<std::chrono::high_resolution_clock> lastFrame;
+
+    Socket* socket;
 
 };
 

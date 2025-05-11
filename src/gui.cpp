@@ -6,6 +6,8 @@ GUI::GUI()
     SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_RESIZABLE, &window, &renderer);
     SDL_SetWindowTitle(window, "Squirrel");
     SDL_AddEventWatch(eventWatch, this);
+
+    socket = new Socket();
 }
 
 GUI::~GUI()
@@ -13,6 +15,39 @@ GUI::~GUI()
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+}
+
+void GUI::setupEmpty()
+{
+    socket->beginListen([](const std::string error)
+    {
+        std::cout << error << "\n";
+    });
+}
+
+void GUI::setupSend(const std::string path)
+{
+    std::ifstream file(path, std::ios_base::binary);
+
+    if (!file.is_open())
+    {
+        std::cout << "Failed to open specified file.\n";
+
+        return;
+    }
+
+    std::stringstream dataStream;
+
+    dataStream << file.rdbuf();
+
+    file.close();
+
+    const std::string data = dataStream.str();
+
+    socket->beginBroadcast([](const std::string error)
+    {
+        std::cout << error << "\n";
+    });
 }
 
 void GUI::run()
