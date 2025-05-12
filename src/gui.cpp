@@ -1,13 +1,12 @@
 #include "gui.h"
 
-GUI::GUI()
+GUI::GUI(Socket* socket) :
+    socket(socket)
 {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_RESIZABLE, &window, &renderer);
     SDL_SetWindowTitle(window, "Squirrel");
     SDL_AddEventWatch(eventWatch, this);
-
-    socket = new Socket();
 }
 
 GUI::~GUI()

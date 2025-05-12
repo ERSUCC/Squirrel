@@ -12,7 +12,7 @@
 
 struct GUI
 {
-    GUI();
+    GUI(Socket* socket);
     ~GUI();
 
     void setupEmpty();
