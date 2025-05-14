@@ -1,5 +1,116 @@
 #include "../include/network.h"
 
+void Socket::beginBroadcast(const std::function<void(const std::string)> handle)
+{
+    if (isBound())
+    {
+        handle("Socket is already bound.");
+
+        return;
+    }
+
+    if (!createSocket())
+    {
+        handle("Failed to create socket.");
+
+        return;
+    }
+
+    if (!enableBroadcast())
+    {
+        handle("Failed to enable socket broadcast.");
+
+        return;
+    }
+
+    if (!bindSocket(INADDR_ANY, 4242))
+    {
+        handle("Failed to bind socket.");
+
+        return;
+    }
+
+    const std::string address = getAddress();
+
+    if (address.empty())
+    {
+        handle("Failed to find a valid network interface.");
+
+        return;
+    }
+
+    broadcastThread = std::thread([=]()
+    {
+        if (!sendTo(address, INADDR_BROADCAST, 4242))
+        {
+            handle("Failed to broadcast message.");
+
+            return;
+        }
+
+        std::string message;
+
+        do
+        {
+            message = receive();
+
+            std::cout << "Received: " << message << "\n";
+        } while (!message.empty());
+
+        if (!destroySocket())
+        {
+            handle("Failed to close socket.");
+
+            return;
+        }
+    });
+}
+
+void Socket::beginListen(const std::function<void(const std::string)> handle)
+{
+    if (isBound())
+    {
+        handle("Socket is already bound.");
+
+        return;
+    }
+
+    if (!createSocket())
+    {
+        handle("Failed to create socket.");
+
+        return;
+    }
+
+    if (!bindSocket(INADDR_ANY, 4242))
+    {
+        handle("Failed to bind socket.");
+
+        return;
+    }
+
+    const std::string address = getAddress();
+
+    broadcastThread = std::thread([=]()
+    {
+        const std::string message = receive();
+
+        if (message.empty())
+        {
+            handle("Failed to receive broadcast.");
+
+            return;
+        }
+
+        if (!sendTo(address, inet_addr(message.c_str()), 4242))
+        {
+            handle("Failed to respond to broadcast.");
+
+            return;
+        }
+    });
+}
+
 #ifdef _WIN32
 
 WinSocket::WinSocket()
@@ -17,165 +128,40 @@ WinSocket::~WinSocket()
     WSACleanup();
 }
 
-void WinSocket::beginBroadcast(const std::function<void(const std::string)> handle)
+bool WinSocket::isBound() const
 {
-    if (socketHandle != INVALID_SOCKET)
-    {
-        handle("Socket is already bound.");
-
-        return;
-    }
-
-    socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
-
-    if (socketHandle == INVALID_SOCKET)
-    {
-        handle("Failed to create socket.");
-
-        return;
-    }
-
-    bool val = true;
-
-    if (setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, (char*)&val, sizeof(bool)) == SOCKET_ERROR)
-    {
-        closesocket(socketHandle);
-
-        handle("Failed to enable socket broadcast.");
-
-        return;
-    }
-
-    sockaddr_in addr;
-
-    memset(&addr, 0, sizeof(addr));
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = 4242;
-    addr.sin_addr.s_addr = INADDR_ANY;
-
-    if (bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR)
-    {
-        closesocket(socketHandle);
-
-        handle("Failed to bind socket.");
-
-        return;
-    }
-
-    unsigned long size = sizeof(IP_ADAPTER_ADDRESSES) * 32;
-
-    IP_ADAPTER_ADDRESSES* addrs = (IP_ADAPTER_ADDRESSES*)malloc(size);
-
-    if (GetAdaptersAddresses(AF_INET, 0, nullptr, addrs, &size) != NO_ERROR)
-    {
-        free(addrs);
-
-        handle("Failed to get network interfaces.");
-
-        return;
-    }
-
-    IP_ADAPTER_ADDRESSES* head = addrs;
-
-    while (addrs)
-    {
-        if (addrs->IfType != IF_TYPE_SOFTWARE_LOOPBACK && addrs->OperStatus == IfOperStatusUp)
-        {
-            break;
-        }
-
-        addrs = addrs->Next;
-    }
-
-    if (!addrs)
-    {
-        free(head);
-
-        handle("Failed to find a valid network interface");
-
-        return;
-    }
-
-    const char* addrStr = inet_ntoa(((sockaddr_in*)addrs->FirstUnicastAddress->Address.lpSockaddr)->sin_addr);
-
-    const unsigned int addrLen = strnlen(addrStr, 15);
-
-    free(head);
-
-    broadcastThread = std::thread([=]()
-    {
-        sockaddr_in addr;
-
-        memset(&addr, 0, sizeof(addr));
-
-        addr.sin_family = AF_INET;
-        addr.sin_port = 4242;
-        addr.sin_addr.s_addr = INADDR_BROADCAST;
-
-        if (sendto(socketHandle, addrStr, addrLen, 0, (sockaddr*)&addr, sizeof(addr)) != addrLen)
-        {
-            handle("Failed to broadcast message.");
-
-            return;
-        }
-
-        char data[128];
-
-        int n;
-
-        do
-        {
-            n = recv(socketHandle, data, 128, 0);
-
-            if (n != -1)
-            {
-                data[n] = '\0';
-
-                std::cout << "response: " << data << "\n";
-            }
-        } while (n != -1);
-
-        shutdown(socketHandle, SD_BOTH);
-        closesocket(socketHandle);
-    });
+    return socketHandle != INVALID_SOCKET;
 }
 
-void WinSocket::beginListen(const std::function<void(const std::string)> handle)
+bool WinSocket::createSocket()
 {
-    if (socketHandle != INVALID_SOCKET)
-    {
-        handle("Socket is already bound.");
-
-        return;
-    }
-
     socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
 
-    if (socketHandle == INVALID_SOCKET)
-    {
-        handle("Failed to create socket.");
+    return socketHandle != INVALID_SOCKET;
+}
 
-        return;
-    }
+bool WinSocket::enableBroadcast()
+{
+    bool val = true;
 
+    return setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, (char*)&val, sizeof(bool)) != SOCKET_ERROR;
+}
+
+bool WinSocket::bindSocket(const unsigned long address, const unsigned int port)
+{
     sockaddr_in addr;
 
     memset(&addr, 0, sizeof(addr));
 
     addr.sin_family = AF_INET;
-    addr.sin_port = 4242;
-    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = address;
 
-    if (bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR)
-    {
-        closesocket(socketHandle);
+    return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR;
+}
 
-        handle("Failed to bind socket.");
-
-        return;
-    }
-
+std::string WinSocket::getAddress() const
+{
     unsigned long size = sizeof(IP_ADAPTER_ADDRESSES) * 32;
 
     IP_ADAPTER_ADDRESSES* addrs = (IP_ADAPTER_ADDRESSES*)malloc(size);
@@ -184,9 +170,7 @@ void WinSocket::beginListen(const std::function<void(const std::string)> handle)
     {
         free(addrs);
 
-        handle("Failed to get network interfaces.");
-
-        return;
+        return "";
     }
 
     IP_ADAPTER_ADDRESSES* head = addrs;
@@ -205,208 +189,110 @@ void WinSocket::beginListen(const std::function<void(const std::string)> handle)
     {
         free(head);
 
-        handle("Failed to find a valid network interface");
-
-        return;
+        return "";
     }
 
-    const char* addrStr = inet_ntoa(((sockaddr_in*)addrs->FirstUnicastAddress->Address.lpSockaddr)->sin_addr);
-
-    const unsigned int addrLen = strnlen(addrStr, 15);
+    char* address = inet_ntoa(((sockaddr_in*)addrs->FirstUnicastAddress->Address.lpSockaddr)->sin_addr);
 
     free(head);
 
-    broadcastThread = std::thread([=]()
+    return address;
+}
+
+bool WinSocket::sendTo(const std::string data, const unsigned long address, const unsigned int port) const
+{
+    sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = address;
+
+    return sendto(socketHandle, data.c_str(), data.size(), 0, (sockaddr*)&addr, sizeof(addr)) == data.size();
+}
+
+std::string WinSocket::receive() const
+{
+    std::string data;
+
+    char buffer[BUFFER_SIZE + 1];
+
+    int received;
+
+    do
     {
-        char data[128];
+        received = recv(socketHandle, buffer, BUFFER_SIZE, 0);
 
-        int n = recv(socketHandle, data, 128, 0);
-
-        if (n == -1)
+        if (received != -1)
         {
-            handle("Failed to receive broadcast.");
+            buffer[received] = '\0';
 
-            return;
+            data += buffer;
         }
+    } while (received >= BUFFER_SIZE); // fix with better message format later
 
-        data[n] = '\0';
+    return data;
+}
 
-        sockaddr_in addr;
+bool WinSocket::destroySocket()
+{
+    if (shutdown(socketHandle, SD_BOTH) == SOCKET_ERROR)
+    {
+        return false;
+    }
 
-        memset(&addr, 0, sizeof(addr));
+    if (closesocket(socketHandle) == SOCKET_ERROR)
+    {
+        return false;
+    }
 
-        addr.sin_family = AF_INET;
-        addr.sin_port = 4242;
-        addr.sin_addr.s_addr = inet_addr(data);
+    socketHandle = INVALID_SOCKET;
 
-        if (sendto(socketHandle, addrStr, addrLen, 0, (sockaddr*)&addr, sizeof(addr)) != addrLen)
-        {
-            handle("Failed to respond to broadcast.");
-
-            return;
-        }
-    });
+    return true;
 }
 
 #else
 
-void BSDSocket::beginBroadcast(const std::function<void(const std::string)> handle)
+bool BSDSocket::isBound() const
 {
-    if (socketHandle != -1)
-    {
-        handle("Socket is alread bound.");
-
-        return;
-    }
-
-    socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
-
-    if (socketHandle == -1)
-    {
-        handle("Failed to create socket.");
-
-        return;
-    }
-
-    int val = 1;
-
-    if (setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) != 0)
-    {
-        handle("Failed to enable socket broadcast.");
-
-        return;
-    }
-
-    sockaddr_in addr;
-
-    memset(&addr, 0, sizeof(addr));
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = 4242;
-    addr.sin_addr.s_addr = INADDR_ANY;
-
-    if (bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) != 0)
-    {
-        handle("Failed to bind socket.");
-
-        return;
-    }
-
-    ifaddrs* addrs;
-
-    if (getifaddrs(&addrs) != 0)
-    {
-        handle("Failed to get network interfaces.");
-
-        return;
-    }
-
-    ifaddrs* head = addrs;
-
-    while (addrs)
-    {
-        if (addrs->ifa_addr->sa_family == AF_INET && ((sockaddr_in*)addrs->ifa_addr)->sin_addr.s_addr != htonl(INADDR_LOOPBACK))
-        {
-            break;
-        }
-
-        addrs = addrs->ifa_next;
-    }
-
-    if (!addrs)
-    {
-        freeifaddrs(head);
-
-        handle("Failed to find a valid network interface.");
-
-        return;
-    }
-
-    const char* addrStr = inet_ntoa(((sockaddr_in*)addrs->ifa_addr)->sin_addr);
-
-    const unsigned int addrLen = strnlen(addrStr, 15);
-
-    freeifaddrs(head);
-
-    broadcastThread = std::thread([=]()
-    {
-        sockaddr_in addr;
-
-        memset(&addr, 0, sizeof(addr));
-
-        addr.sin_family = AF_INET;
-        addr.sin_port = 4242;
-        addr.sin_addr.s_addr = INADDR_BROADCAST;
-
-        if (sendto(socketHandle, addrStr, addrLen, 0, (sockaddr*)&addr, sizeof(addr)) != addrLen)
-        {
-            handle("Failed to broadcast message.");
-
-            return;
-        }
-
-        char data[128];
-
-        int n;
-
-        do
-        {
-            n = recv(socketHandle, data, 128, 0);
-
-            if (n != -1)
-            {
-                data[n] = '\0';
-
-                std::cout << "response: " << data << "\n";
-            }
-        } while (n != -1);
-
-        shutdown(socketHandle, SHUT_RDWR);
-
-        socketHandle = -1;
-    });
+    return socketHandle != -1;
 }
 
-void BSDSocket::beginListen(const std::function<void(const std::string)> handle)
+bool BSDSocket::createSocket()
 {
-    if (socketHandle != -1)
-    {
-        handle("Socket is already bound.");
-
-        return;
-    }
-
     socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
 
-    if (socketHandle == -1)
-    {
-        handle("Failed to create socket.");
+    return socketHandle != -1;
+}
 
-        return;
-    }
+bool BSDSocket::enableBroadcast()
+{
+    int val = 1;
 
+    return setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) == 0;
+}
+
+bool BSDSocket::bindSocket(const unsigned long address, const unsigned int port)
+{
     sockaddr_in addr;
 
     memset(&addr, 0, sizeof(addr));
 
     addr.sin_family = AF_INET;
-    addr.sin_port = 4242;
-    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = address;
 
-    if (bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) != 0)
-    {
-        handle("Failed to bind socket.");
+    return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) == 0;
+}
 
-        return;
-    }
-
+std::string BSDSocket::getAddress() const
+{
     ifaddrs* addrs;
 
     if (getifaddrs(&addrs) != 0)
     {
-        handle("Failed to get network interfaces.");
-
-        return;
+        return "";
     }
 
     ifaddrs* head = addrs;
@@ -425,51 +311,62 @@ void BSDSocket::beginListen(const std::function<void(const std::string)> handle)
     {
         freeifaddrs(head);
 
-        handle("Failed to find a valid network interface.");
-
-        return;
+        return "";
     }
 
     const char* addrStr = inet_ntoa(((sockaddr_in*)addrs->ifa_addr)->sin_addr);
 
-    const unsigned int addrLen = strnlen(addrStr, 15);
-
     freeifaddrs(head);
 
-    broadcastThread = std::thread([=]()
+    return addrStr;
+}
+
+bool BSDSocket::sendTo(const std::string data, const unsigned long address, const unsigned int port) const
+{
+    sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = address;
+
+    return sendto(socketHandle, data.c_str(), data.size(), 0, (sockaddr*)&addr, sizeof(addr)) == data.size();
+}
+
+std::string BSDSocket::receive() const
+{
+    std::string data;
+
+    char buffer[BUFFER_SIZE + 1];
+
+    int received;
+
+    do
     {
-        char data[128];
+        received = recv(socketHandle, buffer, BUFFER_SIZE, 0);
 
-        int n = recv(socketHandle, data, 128, 0);
-
-        if (n == -1)
+        if (received != -1)
         {
-            handle("Failed to receive broadcast.");
+            buffer[received] = '\0';
 
-            return;
+            data += buffer;
         }
+    } while (received >= BUFFER_SIZE); // fix with better message format later
 
-        data[n] = '\0';
+    return data;
+}
 
-        sockaddr_in addr;
+bool BSDSocket::destroySocket()
+{
+    if (shutdown(socketHandle, SHUT_RDWR) != 0)
+    {
+        return false;
+    }
 
-        memset(&addr, 0, sizeof(addr));
+    socketHandle = -1;
 
-        addr.sin_family = AF_INET;
-        addr.sin_port = 4242;
-        addr.sin_addr.s_addr = inet_addr(data);
-
-        if (sendto(socketHandle, addrStr, addrLen, 0, (sockaddr*)&addr, sizeof(addr)) != addrLen)
-        {
-            handle("Failed to respond to broadcast.");
-
-            return;
-        }
-
-        shutdown(socketHandle, SHUT_RDWR);
-
-        socketHandle = -1;
-    });
+    return true;
 }
 
 #endif
