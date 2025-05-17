@@ -247,7 +247,9 @@ Message* WinSocket::receive() const
 
     buffer[BUFFER_SIZE - 1] = '\0';
 
-    return Message::deserialize(std::stringstream(buffer));
+    std::stringstream stream(buffer);
+
+    return Message::deserialize(stream);
 }
 
 bool WinSocket::destroySocket()
@@ -366,7 +368,9 @@ Message* BSDSocket::receive() const
 
     buffer[BUFFER_SIZE - 1] = '\0';
 
-    return Message::deserialize(std::stringstream(buffer));
+    std::stringstream stream(buffer);
+
+    return Message::deserialize(stream);
 }
 
 bool BSDSocket::destroySocket()

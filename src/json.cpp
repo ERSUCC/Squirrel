@@ -158,13 +158,15 @@ std::optional<std::string> JSONString::asString() const
 Message::Message(const JSONObject* data) :
     data(data) {}
 
+#include <iostream>
+
 Message* Message::deserialize(std::stringstream& stream)
 {
-    char buffer[8];
+    char buffer[9];
 
-    stream.get(buffer, 8);
+    stream.get(buffer, 9);
 
-    if (buffer != "squirrel")
+    if (strncmp(buffer, "squirrel", 8) != 0)
     {
         return nullptr;
     }
