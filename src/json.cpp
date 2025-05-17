@@ -158,8 +158,6 @@ std::optional<std::string> JSONString::asString() const
 Message::Message(const JSONObject* data) :
     data(data) {}
 
-#include <iostream>
-
 Message* Message::deserialize(std::stringstream& stream)
 {
     char buffer[9];

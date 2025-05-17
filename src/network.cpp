@@ -41,7 +41,11 @@ void Socket::beginBroadcast(const std::function<void(const std::string)> handle)
 
     broadcastThread = std::thread([=]()
     {
-        const Message* broadcastMessage = new Message(new JSONObject({ { "ip", new JSONString(address) } }));
+        const Message* broadcastMessage = new Message(new JSONObject(
+        {
+            { "type", new JSONString("broadcast") },
+            { "ip", new JSONString(address) }
+        }));
 
         if (!sendTo(broadcastMessage, INADDR_BROADCAST, 4242))
         {
@@ -50,21 +54,16 @@ void Socket::beginBroadcast(const std::function<void(const std::string)> handle)
             return;
         }
 
-        Message* message;
-
-        do
+        while (const Message* message = receive())
         {
-            message = receive();
-
-            if (message)
+            if (message->data->getProperty("type")->asString().value_or("") == "available")
             {
-                std::stringstream stream;
-
-                message->serialize(stream);
-
-                std::cout << "Received: " << stream.str() << "\n";
+                if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
+                {
+                    std::cout << "Received response from: " << ip.value() << "\n";
+                }
             }
-        } while (message);
+        }
 
         if (!destroySocket())
         {
@@ -98,33 +97,28 @@ void Socket::beginListen(const std::function<void(const std::string)> handle)
         return;
     }
 
-    const std::string address = getAddress();
-
     broadcastThread = std::thread([=]()
     {
-        const Message* message = receive();
-
-        if (!message)
+        while (const Message* message = receive())
         {
-            handle("Failed to receive broadcast.");
+            if (message->data->getProperty("type")->asString().value_or("") == "broadcast")
+            {
+                if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
+                {
+                    const Message* response = new Message(new JSONObject(
+                    {
+                        { "type", new JSONString("available") },
+                        { "ip", new JSONString(getAddress()) }
+                    }));
 
-            return;
-        }
+                    if (!sendTo(response, inet_addr(ip.value().c_str()), 4242))
+                    {
+                        handle("Failed to respond to broadcast.");
 
-        const std::optional<std::string> ip = message->data->getProperty("ip")->asString();
-
-        if (!ip)
-        {
-            handle("Failed to receive broadcast.");
-
-            return;
-        }
-
-        if (!sendTo(message, inet_addr(ip.value().c_str()), 4242))
-        {
-            handle("Failed to respond to broadcast.");
-
-            return;
+                        return;
+                    }
+                }
+            }
         }
     });
 }
