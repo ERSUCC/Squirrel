@@ -2,10 +2,13 @@
 
 #include <functional>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <thread>
 
-#define BUFFER_SIZE 128
+#include "json.h"
+
+#define BUFFER_SIZE 512
 
 struct Socket
 {
@@ -20,9 +23,9 @@ protected:
 
     virtual std::string getAddress() const = 0;
 
-    virtual bool sendTo(const std::string data, const unsigned long address, const unsigned int port) const = 0;
+    virtual bool sendTo(const Message* data, const unsigned long address, const unsigned int port) const = 0;
 
-    virtual std::string receive() const = 0;
+    virtual Message* receive() const = 0;
 
     virtual bool destroySocket() = 0;
 
@@ -50,9 +53,9 @@ protected:
 
     std::string getAddress() const override;
 
-    bool sendTo(const std::string data, const unsigned long address, const unsigned int port) const override;
+    bool sendTo(const Message* message, const unsigned long address, const unsigned int port) const override;
 
-    std::string receive() const override;
+    Message* receive() const override;
 
     bool destroySocket() override;
 
@@ -79,9 +82,9 @@ protected:
 
     std::string getAddress() const override;
 
-    bool sendTo(const std::string data, const unsigned long address, const unsigned int port) const override;
+    bool sendTo(const Message* message, const unsigned long address, const unsigned int port) const override;
 
-    std::string receive() const override;
+    Message* receive() const override;
 
     bool destroySocket() override;
 

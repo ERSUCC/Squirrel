@@ -41,21 +41,30 @@ void Socket::beginBroadcast(const std::function<void(const std::string)> handle)
 
     broadcastThread = std::thread([=]()
     {
-        if (!sendTo(address, INADDR_BROADCAST, 4242))
+        const Message* broadcastMessage = new Message(new JSONObject({ { "ip", new JSONString(address) } }));
+
+        if (!sendTo(broadcastMessage, INADDR_BROADCAST, 4242))
         {
             handle("Failed to broadcast message.");
 
             return;
         }
 
-        std::string message;
+        Message* message;
 
         do
         {
             message = receive();
 
-            std::cout << "Received: " << message << "\n";
-        } while (!message.empty());
+            if (message)
+            {
+                std::stringstream stream;
+
+                message->serialize(stream);
+
+                std::cout << "Received: " << stream.str() << "\n";
+            }
+        } while (message);
 
         if (!destroySocket())
         {
@@ -93,16 +102,25 @@ void Socket::beginListen(const std::function<void(const std::string)> handle)
 
     broadcastThread = std::thread([=]()
     {
-        const std::string message = receive();
+        const Message* message = receive();
 
-        if (message.empty())
+        if (!message)
         {
             handle("Failed to receive broadcast.");
 
             return;
         }
 
-        if (!sendTo(address, inet_addr(message.c_str()), 4242))
+        const std::optional<std::string> ip = message->data->getProperty("ip")->asString();
+
+        if (!ip)
+        {
+            handle("Failed to receive broadcast.");
+
+            return;
+        }
+
+        if (!sendTo(message, inet_addr(ip.value().c_str()), 4242))
         {
             handle("Failed to respond to broadcast.");
 
@@ -199,7 +217,7 @@ std::string WinSocket::getAddress() const
     return address;
 }
 
-bool WinSocket::sendTo(const std::string data, const unsigned long address, const unsigned int port) const
+bool WinSocket::sendTo(const Message* message, const unsigned long address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -209,30 +227,27 @@ bool WinSocket::sendTo(const std::string data, const unsigned long address, cons
     addr.sin_port = port;
     addr.sin_addr.s_addr = address;
 
-    return sendto(socketHandle, data.c_str(), data.size(), 0, (sockaddr*)&addr, sizeof(addr)) == data.size();
+    std::stringstream stream;
+
+    message->serialize(stream);
+
+    const std::string& str = stream.str();
+
+    return sendto(socketHandle, str.c_str(), str.size() + 1, 0, (sockaddr*)&addr, sizeof(addr)) == str.size() + 1;
 }
 
-std::string WinSocket::receive() const
+Message* WinSocket::receive() const
 {
-    std::string data;
+    char buffer[BUFFER_SIZE];
 
-    char buffer[BUFFER_SIZE + 1];
-
-    int received;
-
-    do
+    if (recv(socketHandle, buffer, BUFFER_SIZE, 0) == -1)
     {
-        received = recv(socketHandle, buffer, BUFFER_SIZE, 0);
+        return nullptr;
+    }
 
-        if (received != -1)
-        {
-            buffer[received] = '\0';
+    buffer[BUFFER_SIZE - 1] = '\0';
 
-            data += buffer;
-        }
-    } while (received >= BUFFER_SIZE); // fix with better message format later
-
-    return data;
+    return Message::deserialize(std::stringstream(buffer));
 }
 
 bool WinSocket::destroySocket()
@@ -321,7 +336,7 @@ std::string BSDSocket::getAddress() const
     return addrStr;
 }
 
-bool BSDSocket::sendTo(const std::string data, const unsigned long address, const unsigned int port) const
+bool BSDSocket::sendTo(const Message* message, const unsigned long address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -331,30 +346,27 @@ bool BSDSocket::sendTo(const std::string data, const unsigned long address, cons
     addr.sin_port = port;
     addr.sin_addr.s_addr = address;
 
-    return sendto(socketHandle, data.c_str(), data.size(), 0, (sockaddr*)&addr, sizeof(addr)) == data.size();
+    std::stringstream stream;
+
+    message->serialize(stream);
+
+    const std::string& str = stream.str();
+
+    return sendto(socketHandle, str.c_str(), str.size() + 1, 0, (sockaddr*)&addr, sizeof(addr)) == str.size() + 1;
 }
 
-std::string BSDSocket::receive() const
+Message* BSDSocket::receive() const
 {
-    std::string data;
+    char buffer[BUFFER_SIZE];
 
-    char buffer[BUFFER_SIZE + 1];
-
-    int received;
-
-    do
+    if (recv(socketHandle, buffer, BUFFER_SIZE, 0) == -1)
     {
-        received = recv(socketHandle, buffer, BUFFER_SIZE, 0);
+        return nullptr;
+    }
 
-        if (received != -1)
-        {
-            buffer[received] = '\0';
+    buffer[BUFFER_SIZE - 1] = '\0';
 
-            data += buffer;
-        }
-    } while (received >= BUFFER_SIZE); // fix with better message format later
-
-    return data;
+    return Message::deserialize(std::stringstream(buffer));
 }
 
 bool BSDSocket::destroySocket()

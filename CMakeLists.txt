@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_executable(squirrel src/gui.cpp
+                        src/json.cpp
                         src/main.cpp
                         src/network.cpp)
 
