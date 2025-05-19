@@ -1,19 +1,24 @@
 #pragma once
 
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <thread>
 
+#include "base64.h"
 #include "json.h"
 
 #define BUFFER_SIZE 512
 
 struct Socket
 {
-    void beginBroadcast(const std::function<void(const std::string)> handle);
-    void beginListen(const std::function<void(const std::string)> handle);
+    void beginBroadcast(const std::function<void(const std::string)> handleResponse, const std::function<void(const std::string)> handleError);
+    void beginListen(const std::function<void(const std::string)> handleError);
+    void beginTransfer(const std::filesystem::path path, const std::string ip, const std::function<void(const std::string)> handleError);
 
 protected:
     virtual bool isBound() const = 0;
@@ -31,6 +36,8 @@ protected:
 
 private:
     std::thread broadcastThread;
+    std::thread responseThread;
+    std::thread listenThread;
 
 };
 

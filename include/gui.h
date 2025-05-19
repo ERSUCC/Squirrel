@@ -1,10 +1,12 @@
 #pragma once
 
 #include <chrono>
-#include <fstream>
+#include <functional>
 #include <iostream>
 #include <mutex>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include <SDL.h>
 
@@ -22,7 +24,9 @@ struct GUI
     void render();
 
 private:
-    std::mutex lock;
+    void handleResponse(const std::string ip);
+
+    std::mutex renderLock;
 
     SDL_Window* window;
     SDL_Renderer* renderer;
@@ -34,6 +38,10 @@ private:
     std::chrono::time_point<std::chrono::high_resolution_clock> lastFrame;
 
     Socket* socket;
+
+    std::vector<std::string> availableTargets;
+
+    std::string path;
 
 };
 

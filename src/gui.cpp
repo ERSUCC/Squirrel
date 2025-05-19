@@ -26,24 +26,9 @@ void GUI::setupEmpty()
 
 void GUI::setupSend(const std::string path)
 {
-    std::ifstream file(path, std::ios_base::binary);
+    this->path = path;
 
-    if (!file.is_open())
-    {
-        std::cout << "Failed to open specified file.\n";
-
-        return;
-    }
-
-    std::stringstream dataStream;
-
-    dataStream << file.rdbuf();
-
-    file.close();
-
-    const std::string data = dataStream.str();
-
-    socket->beginBroadcast([](const std::string error)
+    socket->beginBroadcast(std::bind(&GUI::handleResponse, this, std::placeholders::_1), [](const std::string error)
     {
         std::cout << error << "\n";
     });
@@ -67,6 +52,22 @@ void GUI::run()
                     running = false;
 
                     break;
+
+                case SDL_MOUSEBUTTONDOWN:
+                    // check actual positions later, this is simplified for testing
+                    renderLock.lock();
+
+                    if (!availableTargets.empty())
+                    {
+                        socket->beginTransfer(path, availableTargets[0], [](const std::string error)
+                        {
+                            std::cout << error << "\n";
+                        });
+                    }
+
+                    renderLock.unlock();
+
+                    break;
             }
         }
 
@@ -79,15 +80,42 @@ void GUI::run()
 
 void GUI::render()
 {
-    lock.lock();
+    renderLock.lock();
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
+
+    SDL_SetRenderDrawColor(renderer, 255, 128, 128, 255);
+
+    const int size = 50;
+    const int gap = 25;
+
+    const int startX = width / 2 - (availableTargets.size() * size + (availableTargets.size() - 1) * gap) / 2;
+
+    for (int i = 0; i < availableTargets.size(); i++)
+    {
+        SDL_Rect rect { startX + i * (size + gap), height / 2 - size / 2, size, size };
+
+        SDL_RenderFillRect(renderer, &rect);
+    }
+
     SDL_RenderPresent(renderer);
 
     lastFrame = clock.now();
 
-    lock.unlock();
+    renderLock.unlock();
+}
+
+void GUI::handleResponse(const std::string ip)
+{
+    renderLock.lock();
+
+    if (std::find(availableTargets.begin(), availableTargets.end(), ip) == availableTargets.end())
+    {
+        availableTargets.push_back(ip);
+    }
+
+    renderLock.unlock();
 }
 
 int eventWatch(void* userdata, SDL_Event* event)

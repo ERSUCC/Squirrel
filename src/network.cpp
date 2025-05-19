@@ -1,31 +1,31 @@
 #include "../include/network.h"
 
-void Socket::beginBroadcast(const std::function<void(const std::string)> handle)
+void Socket::beginBroadcast(const std::function<void(const std::string)> handleResponse, const std::function<void(const std::string)> handleError)
 {
     if (isBound())
     {
-        handle("Socket is already bound.");
+        handleError("Socket is already bound.");
 
         return;
     }
 
     if (!createSocket())
     {
-        handle("Failed to create socket.");
+        handleError("Failed to create socket.");
 
         return;
     }
 
     if (!enableBroadcast())
     {
-        handle("Failed to enable socket broadcast.");
+        handleError("Failed to enable socket broadcast.");
 
         return;
     }
 
     if (!bindSocket(INADDR_ANY, 4242))
     {
-        handle("Failed to bind socket.");
+        handleError("Failed to bind socket.");
 
         return;
     }
@@ -34,70 +34,93 @@ void Socket::beginBroadcast(const std::function<void(const std::string)> handle)
 
     if (address.empty())
     {
-        handle("Failed to find a valid network interface.");
+        handleError("Failed to find a valid network interface.");
 
         return;
     }
 
     broadcastThread = std::thread([=]()
     {
-        const Message* broadcastMessage = new Message(new JSONObject(
+        std::chrono::high_resolution_clock clock;
+        std::chrono::time_point<std::chrono::high_resolution_clock> last;
+
+        while (true)
         {
-            { "type", new JSONString("broadcast") },
-            { "ip", new JSONString(address) }
-        }));
+            if ((clock.now() - last).count() >= 1e9)
+            {
+                const Message* broadcastMessage = new Message(new JSONObject(
+                {
+                    { "type", new JSONString("broadcast") },
+                    { "ip", new JSONString(address) }
+                }));
 
-        if (!sendTo(broadcastMessage, INADDR_BROADCAST, 4242))
-        {
-            handle("Failed to broadcast message.");
+                if (!sendTo(broadcastMessage, INADDR_BROADCAST, 4242))
+                {
+                    handleError("Failed to broadcast message.");
 
-            return;
-        }
+                    return;
+                }
 
+                last = clock.now();
+            }
+        };
+    });
+
+    responseThread = std::thread([=]()
+    {
         while (const Message* message = receive())
         {
             if (message->data->getProperty("type")->asString().value_or("") == "available")
             {
                 if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
                 {
-                    std::cout << "Received response from: " << ip.value() << "\n";
+                    handleResponse(ip.value());
                 }
             }
         }
 
         if (!destroySocket())
         {
-            handle("Failed to close socket.");
+            handleError("Failed to close socket.");
 
             return;
         }
     });
 }
 
-void Socket::beginListen(const std::function<void(const std::string)> handle)
+void Socket::beginListen(const std::function<void(const std::string)> handleError)
 {
     if (isBound())
     {
-        handle("Socket is already bound.");
+        handleError("Socket is already bound.");
 
         return;
     }
 
     if (!createSocket())
     {
-        handle("Failed to create socket.");
+        handleError("Failed to create socket.");
 
         return;
     }
 
     if (!bindSocket(INADDR_ANY, 4242))
     {
-        handle("Failed to bind socket.");
+        handleError("Failed to bind socket.");
 
         return;
     }
 
-    broadcastThread = std::thread([=]()
+    const std::string address = getAddress();
+
+    if (address.empty())
+    {
+        handleError("Failed to find a valid network interface.");
+
+        return;
+    }
+
+    listenThread = std::thread([=]()
     {
         while (const Message* message = receive())
         {
@@ -108,12 +131,12 @@ void Socket::beginListen(const std::function<void(const std::string)> handle)
                     const Message* response = new Message(new JSONObject(
                     {
                         { "type", new JSONString("available") },
-                        { "ip", new JSONString(getAddress()) }
+                        { "ip", new JSONString(address) }
                     }));
 
                     if (!sendTo(response, inet_addr(ip.value().c_str()), 4242))
                     {
-                        handle("Failed to respond to broadcast.");
+                        handleError("Failed to respond to broadcast.");
 
                         return;
                     }
@@ -121,6 +144,36 @@ void Socket::beginListen(const std::function<void(const std::string)> handle)
             }
         }
     });
+}
+
+void Socket::beginTransfer(const std::filesystem::path path, const std::string ip, const std::function<void(const std::string)> handleError)
+{
+    std::ifstream file(path, std::ios_base::binary);
+
+    if (!file.is_open())
+    {
+        handleError("Failed to open specified file.");
+
+        return;
+    }
+
+    std::stringstream stream;
+
+    stream << file.rdbuf();
+
+    file.close();
+
+    const std::string name = path.filename().string();
+    const std::string data = Base64::encode(stream.str());
+
+    const Message* message = new Message(new JSONObject(
+    {
+        { "type", new JSONString("transfer") },
+        { "name", new JSONString(name) },
+        { "data", new JSONString(data) }
+    }));
+
+    // send message over TCP
 }
 
 #ifdef _WIN32
