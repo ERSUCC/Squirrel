@@ -126,7 +126,7 @@ struct BSDUDPSocket : public UDPSocket
     bool destroy() override;
 
 private:
-    SOCKET socketHandle = INVALID_SOCKET;
+    int socketHandle = -1;
 
 };
 

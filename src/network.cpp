@@ -547,12 +547,12 @@ bool BSDTCPSocket::destroy()
 
 UDPSocket* BSDNetworkManager::newUDPSocket() const
 {
-    return new BSDSocket();
+    return new BSDUDPSocket();
 }
 
 TCPSocket* BSDNetworkManager::newTCPSocket() const
 {
-    return new TCPSocket();
+    return new BSDTCPSocket();
 }
 
 std::string BSDNetworkManager::getAddress() const

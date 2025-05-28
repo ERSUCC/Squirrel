@@ -60,7 +60,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
 
 int main(int argc, char** argv)
 {
-    init(argc - 1, argv + 1, new BSDSocket());
+    init(argc - 1, argv + 1, new BSDNetworkManager());
 
     return 0;
 }
