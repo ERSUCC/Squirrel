@@ -1,6 +1,8 @@
 #pragma once
 
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <mutex>
@@ -12,10 +14,11 @@
 #include <SDL_ttf.h>
 
 #include "network.h"
+#include "files.h"
 
 struct GUI
 {
-    GUI(NetworkManager* network);
+    GUI(NetworkManager* networkManager, FileManager* fileManager);
     ~GUI();
 
     void setupEmpty();
@@ -40,7 +43,8 @@ private:
     std::chrono::high_resolution_clock clock;
     std::chrono::time_point<std::chrono::high_resolution_clock> lastFrame;
 
-    NetworkManager* network;
+    NetworkManager* networkManager;
+    FileManager* fileManager;
 
     std::vector<std::string> availableTargets;
 

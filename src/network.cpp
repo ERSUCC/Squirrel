@@ -69,7 +69,7 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string)>
     });
 }
 
-void NetworkManager::beginListen(const std::function<void(const std::string)> handleError)
+void NetworkManager::beginListen(const std::function<void(const std::string, const std::string&)> handleReceive, const std::function<void(const std::string)> handleError)
 {
     udpSocket = newUDPSocket();
 
@@ -117,7 +117,7 @@ void NetworkManager::beginListen(const std::function<void(const std::string)> ha
                         return;
                     }
 
-                    beginReceive(ip.value(), handleError);
+                    beginReceive(ip.value(), handleReceive, handleError);
                 }
             }
         }
@@ -199,7 +199,7 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
     });
 }
 
-void NetworkManager::beginReceive(const std::string ip, const std::function<void(const std::string)> handleError)
+void NetworkManager::beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive, const std::function<void(const std::string)> handleError)
 {
     if (tcpSocket)
     {
@@ -263,12 +263,24 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
             return;
         }
 
-        std::cout << "received file: " << message->data->getProperty("name")->asString().value() << "\n";
-
         if (!tcpSocket->destroy())
         {
             handleError("Failed to destroy socket.");
+
+            return;
         }
+
+        const std::optional<std::string> name = message->data->getProperty("name")->asString();
+        const std::optional<std::string> data = message->data->getProperty("data")->asString();
+
+        if (!name || !data)
+        {
+            handleError("Received incorrect message format.");
+
+            return;
+        }
+
+        handleReceive(name.value(), Base64::decode(data.value()));
     });
 }
 

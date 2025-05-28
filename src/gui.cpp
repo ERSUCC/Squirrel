@@ -1,7 +1,7 @@
 #include "gui.h"
 
-GUI::GUI(NetworkManager* network) :
-    network(network)
+GUI::GUI(NetworkManager* networkManager, FileManager* fileManager) :
+    networkManager(networkManager), fileManager(fileManager)
 {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_RESIZABLE, &window, &renderer);
@@ -25,7 +25,23 @@ GUI::~GUI()
 
 void GUI::setupEmpty()
 {
-    network->beginListen([](const std::string error)
+    networkManager->beginListen([=](const std::string name, const std::string& data)
+    {
+        const std::filesystem::path path = fileManager->getSavePath(name);
+
+        std::ofstream file(path);
+
+        if (!file.is_open())
+        {
+            std::cout << "Failed to save file.\n";
+
+            return;
+        }
+
+        file << data;
+
+        file.close();
+    }, [](const std::string error)
     {
         std::cout << error << "\n";
     });
@@ -35,7 +51,7 @@ void GUI::setupSend(const std::string path)
 {
     this->path = path;
 
-    network->beginBroadcast(std::bind(&GUI::handleResponse, this, std::placeholders::_1), [](const std::string error)
+    networkManager->beginBroadcast(std::bind(&GUI::handleResponse, this, std::placeholders::_1), [](const std::string error)
     {
         std::cout << error << "\n";
     });
@@ -66,7 +82,7 @@ void GUI::run()
 
                     if (!availableTargets.empty())
                     {
-                        network->beginTransfer(path, availableTargets[0], [](const std::string error)
+                        networkManager->beginTransfer(path, availableTargets[0], [](const std::string error)
                         {
                             std::cout << error << "\n";
                         });
