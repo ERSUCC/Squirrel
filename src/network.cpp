@@ -1,29 +1,17 @@
 #include "../include/network.h"
 
-void Socket::beginBroadcast(const std::function<void(const std::string)> handleResponse, const std::function<void(const std::string)> handleError)
+void NetworkManager::beginBroadcast(const std::function<void(const std::string)> handleResponse, const std::function<void(const std::string)> handleError)
 {
-    if (isBound())
-    {
-        handleError("Socket is already bound.");
+    udpSocket = newUDPSocket();
 
-        return;
-    }
-
-    if (!createSocket())
+    if (!udpSocket->create())
     {
         handleError("Failed to create socket.");
 
         return;
     }
 
-    if (!enableBroadcast())
-    {
-        handleError("Failed to enable socket broadcast.");
-
-        return;
-    }
-
-    if (!bindSocket(INADDR_ANY, 4242))
+    if (!udpSocket->bindTo("0.0.0.0", 4242))
     {
         handleError("Failed to bind socket.");
 
@@ -44,7 +32,7 @@ void Socket::beginBroadcast(const std::function<void(const std::string)> handleR
         std::chrono::high_resolution_clock clock;
         std::chrono::time_point<std::chrono::high_resolution_clock> last;
 
-        while (true)
+        while (udpSocket)
         {
             if ((clock.now() - last).count() >= 1e9)
             {
@@ -54,7 +42,7 @@ void Socket::beginBroadcast(const std::function<void(const std::string)> handleR
                     { "ip", new JSONString(address) }
                 }));
 
-                if (!sendTo(broadcastMessage, INADDR_BROADCAST, 4242))
+                if (!udpSocket->sendTo(broadcastMessage, "255.255.255.255", 4242))
                 {
                     handleError("Failed to broadcast message.");
 
@@ -68,7 +56,7 @@ void Socket::beginBroadcast(const std::function<void(const std::string)> handleR
 
     responseThread = std::thread([=]()
     {
-        while (const Message* message = receive())
+        while (const Message* message = udpSocket->receive())
         {
             if (message->data->getProperty("type")->asString().value_or("") == "available")
             {
@@ -78,33 +66,21 @@ void Socket::beginBroadcast(const std::function<void(const std::string)> handleR
                 }
             }
         }
-
-        if (!destroySocket())
-        {
-            handleError("Failed to close socket.");
-
-            return;
-        }
     });
 }
 
-void Socket::beginListen(const std::function<void(const std::string)> handleError)
+void NetworkManager::beginListen(const std::function<void(const std::string)> handleError)
 {
-    if (isBound())
-    {
-        handleError("Socket is already bound.");
+    udpSocket = newUDPSocket();
 
-        return;
-    }
-
-    if (!createSocket())
+    if (!udpSocket->create())
     {
         handleError("Failed to create socket.");
 
         return;
     }
 
-    if (!bindSocket(INADDR_ANY, 4242))
+    if (!udpSocket->bindTo("0.0.0.0", 4242))
     {
         handleError("Failed to bind socket.");
 
@@ -122,7 +98,7 @@ void Socket::beginListen(const std::function<void(const std::string)> handleErro
 
     listenThread = std::thread([=]()
     {
-        while (const Message* message = receive())
+        while (const Message* message = udpSocket->receive())
         {
             if (message->data->getProperty("type")->asString().value_or("") == "broadcast")
             {
@@ -134,7 +110,7 @@ void Socket::beginListen(const std::function<void(const std::string)> handleErro
                         { "ip", new JSONString(address) }
                     }));
 
-                    if (!sendTo(response, inet_addr(ip.value().c_str()), 4242))
+                    if (!udpSocket->sendTo(response, ip.value(), 4242))
                     {
                         handleError("Failed to respond to broadcast.");
 
@@ -146,7 +122,7 @@ void Socket::beginListen(const std::function<void(const std::string)> handleErro
     });
 }
 
-void Socket::beginTransfer(const std::filesystem::path path, const std::string ip, const std::function<void(const std::string)> handleError)
+void NetworkManager::beginTransfer(const std::filesystem::path path, const std::string ip, const std::function<void(const std::string)> handleError)
 {
     std::ifstream file(path, std::ios_base::binary);
 
@@ -173,12 +149,197 @@ void Socket::beginTransfer(const std::filesystem::path path, const std::string i
         { "data", new JSONString(data) }
     }));
 
-    // send message over TCP
+    udpSocket->destroy();
+
+    udpSocket = nullptr;
+
+    broadcastThread.join();
+
+    tcpSocket = newTCPSocket();
+
+    if (!tcpSocket->create())
+    {
+        handleError("Failed to create socket.");
+
+        return;
+    }
+
+    transferThread = std::thread([=]()
+    {
+        if (!tcpSocket->connectTo(ip, 4242))
+        {
+            handleError("Failed to connect to socket.");
+
+            return;
+        }
+
+        if (!tcpSocket->sendMessage(message))
+        {
+            handleError("Failed to transfer file.");
+
+            return;
+        }
+
+        if (!tcpSocket->destroy())
+        {
+            handleError("Failed to destroy socket.");
+        }
+    });
 }
 
 #ifdef _WIN32
 
-WinSocket::WinSocket()
+bool WinUDPSocket::create()
+{
+    socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
+
+    if (socketHandle == INVALID_SOCKET)
+    {
+        return false;
+    }
+
+    bool val = true;
+
+    return setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, (char*)&val, sizeof(bool)) != SOCKET_ERROR;
+}
+
+bool WinUDPSocket::bindTo(const std::string address, const unsigned int port) const
+{
+    sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = inet_addr(address.c_str());
+
+    return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR;
+}
+
+bool WinUDPSocket::sendTo(const Message* message, const std::string address, const unsigned int port) const
+{
+    sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = inet_addr(address.c_str());
+
+    std::stringstream stream;
+
+    message->serialize(stream);
+
+    const std::string& str = stream.str();
+
+    return sendto(socketHandle, str.c_str(), str.size() + 1, 0, (sockaddr*)&addr, sizeof(addr)) == str.size() + 1;
+}
+
+Message* WinUDPSocket::receive() const
+{
+    char buffer[BUFFER_SIZE];
+
+    if (recv(socketHandle, buffer, BUFFER_SIZE, 0) == -1)
+    {
+        return nullptr;
+    }
+
+    buffer[BUFFER_SIZE - 1] = '\0';
+
+    std::stringstream stream(buffer);
+
+    return Message::deserialize(stream);
+}
+
+bool WinUDPSocket::destroy()
+{
+    if (shutdown(socketHandle, SD_BOTH) == SOCKET_ERROR)
+    {
+        return false;
+    }
+
+    if (closesocket(socketHandle) == SOCKET_ERROR)
+    {
+        return false;
+    }
+
+    socketHandle = INVALID_SOCKET;
+
+    return true;
+}
+
+bool WinTCPSocket::create()
+{
+    socketHandle = socket(PF_INET, SOCK_STREAM, 0);
+
+    return socketHandle != INVALID_SOCKET;
+}
+
+bool WinTCPSocket::connectTo(const std::string address, const unsigned int port) const
+{
+    sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = inet_addr(address.c_str());
+
+    return connect(socketHandle, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR;
+}
+
+bool WinTCPSocket::sendMessage(const Message* message) const
+{
+    std::stringstream stream;
+
+    message->serialize(stream);
+
+    const std::string& str = stream.str();
+
+    return send(socketHandle, str.c_str(), str.size() + 1, 0) == str.size() + 1;
+}
+
+Message* WinTCPSocket::receive() const
+{
+    std::stringstream stream;
+
+    char buffer[BUFFER_SIZE];
+
+    buffer[BUFFER_SIZE - 1] = '\0';
+
+    int n;
+
+    do
+    {
+        n = recv(socketHandle, buffer, BUFFER_SIZE - 1, 0);
+
+        if (n == -1)
+        {
+            return nullptr;
+        }
+    } while (buffer[n] != '\0');
+
+    return Message::deserialize(stream);
+}
+
+bool WinTCPSocket::destroy()
+{
+    if (shutdown(socketHandle, SD_BOTH) == SOCKET_ERROR)
+    {
+        return false;
+    }
+
+    if (closesocket(socketHandle) == SOCKET_ERROR)
+    {
+        return false;
+    }
+
+    socketHandle = INVALID_SOCKET;
+
+    return true;
+}
+
+WinNetworkManager::WinNetworkManager()
 {
     WSADATA wsaData;
 
@@ -188,44 +349,22 @@ WinSocket::WinSocket()
     }
 }
 
-WinSocket::~WinSocket()
+WinNetworkManager::~WinNetworkManager()
 {
     WSACleanup();
 }
 
-bool WinSocket::isBound() const
+UDPSocket* WinNetworkManager::newUDPSocket() const
 {
-    return socketHandle != INVALID_SOCKET;
+    return new WinUDPSocket();
 }
 
-bool WinSocket::createSocket()
+TCPSocket* WinNetworkManager::newTCPSocket() const
 {
-    socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
-
-    return socketHandle != INVALID_SOCKET;
+    return new WinTCPSocket();
 }
 
-bool WinSocket::enableBroadcast()
-{
-    bool val = true;
-
-    return setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, (char*)&val, sizeof(bool)) != SOCKET_ERROR;
-}
-
-bool WinSocket::bindSocket(const unsigned long address, const unsigned int port)
-{
-    sockaddr_in addr;
-
-    memset(&addr, 0, sizeof(addr));
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = port;
-    addr.sin_addr.s_addr = address;
-
-    return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR;
-}
-
-std::string WinSocket::getAddress() const
+std::string WinNetworkManager::getAddress() const
 {
     unsigned long size = sizeof(IP_ADAPTER_ADDRESSES) * 32;
 
@@ -264,7 +403,23 @@ std::string WinSocket::getAddress() const
     return address;
 }
 
-bool WinSocket::sendTo(const Message* message, const unsigned long address, const unsigned int port) const
+#else
+
+bool BSDUDPSocket::create()
+{
+    socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
+
+    if (socketHandle == -1)
+    {
+        return false;
+    }
+
+    int val = 1;
+
+    return setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) == 0;
+}
+
+bool BSDUDPSocket::bindTo(const std::string address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -272,7 +427,20 @@ bool WinSocket::sendTo(const Message* message, const unsigned long address, cons
 
     addr.sin_family = AF_INET;
     addr.sin_port = port;
-    addr.sin_addr.s_addr = address;
+    addr.sin_addr.s_addr = inet_addr(address.c_str());
+
+    return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) == 0;
+}
+
+bool BSDUDPSocket::sendTo(const Message* message, const std::string address, const unsigned int port) const
+{
+    sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = inet_addr(address.c_str());
 
     std::stringstream stream;
 
@@ -283,7 +451,7 @@ bool WinSocket::sendTo(const Message* message, const unsigned long address, cons
     return sendto(socketHandle, str.c_str(), str.size() + 1, 0, (sockaddr*)&addr, sizeof(addr)) == str.size() + 1;
 }
 
-Message* WinSocket::receive() const
+Message* BSDUDPSocket::receive() const
 {
     char buffer[BUFFER_SIZE];
 
@@ -299,45 +467,26 @@ Message* WinSocket::receive() const
     return Message::deserialize(stream);
 }
 
-bool WinSocket::destroySocket()
+bool BSDUDPSocket::destroy()
 {
-    if (shutdown(socketHandle, SD_BOTH) == SOCKET_ERROR)
+    if (shutdown(socketHandle, SHUT_RDWR) != 0)
     {
         return false;
     }
 
-    if (closesocket(socketHandle) == SOCKET_ERROR)
-    {
-        return false;
-    }
-
-    socketHandle = INVALID_SOCKET;
+    socketHandle = -1;
 
     return true;
 }
 
-#else
-
-bool BSDSocket::isBound() const
+bool BSDTCPSocket::create()
 {
-    return socketHandle != -1;
-}
-
-bool BSDSocket::createSocket()
-{
-    socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
+    socketHandle = socket(PF_INET, SOCK_STREAM, 0);
 
     return socketHandle != -1;
 }
 
-bool BSDSocket::enableBroadcast()
-{
-    int val = 1;
-
-    return setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) == 0;
-}
-
-bool BSDSocket::bindSocket(const unsigned long address, const unsigned int port)
+bool BSDTCPSocket::connectTo(const std::string address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -345,12 +494,68 @@ bool BSDSocket::bindSocket(const unsigned long address, const unsigned int port)
 
     addr.sin_family = AF_INET;
     addr.sin_port = port;
-    addr.sin_addr.s_addr = address;
+    addr.sin_addr.s_addr = inet_addr(address.c_str());
 
-    return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) == 0;
+    return connect(socketHandle, (sockaddr*)&addr, sizeof(addr)) == 0;
 }
 
-std::string BSDSocket::getAddress() const
+bool BSDTCPSocket::sendMessage(const Message* message) const
+{
+    std::stringstream stream;
+
+    message->serialize(stream);
+
+    const std::string& str = stream.str();
+
+    return send(socketHandle, str.c_str(), str.size() + 1, 0) == str.size() + 1;
+}
+
+Message* BSDTCPSocket::receive() const
+{
+    std::stringstream stream;
+
+    char buffer[BUFFER_SIZE];
+
+    buffer[BUFFER_SIZE - 1] = '\0';
+
+    int n;
+
+    do
+    {
+        n = recv(socketHandle, buffer, BUFFER_SIZE - 1, 0);
+
+        if (n == -1)
+        {
+            return nullptr;
+        }
+    } while (buffer[n] != '\0');
+
+    return Message::deserialize(stream);
+}
+
+bool BSDTCPSocket::destroy()
+{
+    if (shutdown(socketHandle, SHUT_RDWR) != 0)
+    {
+        return false;
+    }
+
+    socketHandle = -1;
+
+    return true;
+}
+
+UDPSocket* BSDNetworkManager::newUDPSocket() const
+{
+    return new BSDSocket();
+}
+
+TCPSocket* BSDNetworkManager::newTCPSocket() const
+{
+    return new TCPSocket();
+}
+
+std::string BSDNetworkManager::getAddress() const
 {
     ifaddrs* addrs;
 
@@ -383,53 +588,6 @@ std::string BSDSocket::getAddress() const
     freeifaddrs(head);
 
     return addrStr;
-}
-
-bool BSDSocket::sendTo(const Message* message, const unsigned long address, const unsigned int port) const
-{
-    sockaddr_in addr;
-
-    memset(&addr, 0, sizeof(addr));
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = port;
-    addr.sin_addr.s_addr = address;
-
-    std::stringstream stream;
-
-    message->serialize(stream);
-
-    const std::string& str = stream.str();
-
-    return sendto(socketHandle, str.c_str(), str.size() + 1, 0, (sockaddr*)&addr, sizeof(addr)) == str.size() + 1;
-}
-
-Message* BSDSocket::receive() const
-{
-    char buffer[BUFFER_SIZE];
-
-    if (recv(socketHandle, buffer, BUFFER_SIZE, 0) == -1)
-    {
-        return nullptr;
-    }
-
-    buffer[BUFFER_SIZE - 1] = '\0';
-
-    std::stringstream stream(buffer);
-
-    return Message::deserialize(stream);
-}
-
-bool BSDSocket::destroySocket()
-{
-    if (shutdown(socketHandle, SHUT_RDWR) != 0)
-    {
-        return false;
-    }
-
-    socketHandle = -1;
-
-    return true;
 }
 
 #endif

@@ -1,7 +1,7 @@
 #include "gui.h"
 
-GUI::GUI(Socket* socket) :
-    socket(socket)
+GUI::GUI(NetworkManager* network) :
+    network(network)
 {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_RESIZABLE, &window, &renderer);
@@ -18,7 +18,7 @@ GUI::~GUI()
 
 void GUI::setupEmpty()
 {
-    socket->beginListen([](const std::string error)
+    network->beginListen([](const std::string error)
     {
         std::cout << error << "\n";
     });
@@ -28,7 +28,7 @@ void GUI::setupSend(const std::string path)
 {
     this->path = path;
 
-    socket->beginBroadcast(std::bind(&GUI::handleResponse, this, std::placeholders::_1), [](const std::string error)
+    network->beginBroadcast(std::bind(&GUI::handleResponse, this, std::placeholders::_1), [](const std::string error)
     {
         std::cout << error << "\n";
     });
@@ -59,7 +59,7 @@ void GUI::run()
 
                     if (!availableTargets.empty())
                     {
-                        socket->beginTransfer(path, availableTargets[0], [](const std::string error)
+                        network->beginTransfer(path, availableTargets[0], [](const std::string error)
                         {
                             std::cout << error << "\n";
                         });

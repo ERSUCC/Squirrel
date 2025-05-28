@@ -1,9 +1,9 @@
 #include "../include/gui.h"
 #include "../include/network.h"
 
-void init(const int argc, char** argv, Socket* socket)
+void init(const int argc, char** argv, NetworkManager* network)
 {
-    GUI* gui = new GUI(socket);
+    GUI* gui = new GUI(network);
 
     if (argc == 0)
     {
@@ -45,12 +45,12 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
             argvChar[i][length] = '\0';
         }
 
-        init(argc, argvChar, new WinSocket());
+        init(argc, argvChar, new WinNetworkManager());
     }
 
     else
     {
-        init(0, nullptr, new WinSocket());
+        init(0, nullptr, new WinNetworkManager());
     }
 
     return 0;

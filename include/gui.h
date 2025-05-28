@@ -14,7 +14,7 @@
 
 struct GUI
 {
-    GUI(Socket* socket);
+    GUI(NetworkManager* network);
     ~GUI();
 
     void setupEmpty();
@@ -37,7 +37,7 @@ private:
     std::chrono::high_resolution_clock clock;
     std::chrono::time_point<std::chrono::high_resolution_clock> lastFrame;
 
-    Socket* socket;
+    NetworkManager* network;
 
     std::vector<std::string> availableTargets;
 
