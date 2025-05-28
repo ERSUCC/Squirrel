@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_executable(squirrel src/base64.cpp
                         src/files.cpp
+                        src/files_mac.mm
                         src/gui.cpp
                         src/json.cpp
                         src/main.cpp
@@ -28,6 +29,8 @@ elseif(APPLE)
 
     target_link_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl2/2.32.4_1/lib")
     target_link_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl2_ttf/2.24.0/lib")
+
+    target_link_libraries(squirrel "-framework CoreFoundation" "-framework AppKit")
 elseif(LINUX)
     # not sure yet
 endif()

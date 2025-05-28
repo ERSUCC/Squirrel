@@ -54,14 +54,7 @@ std::filesystem::path WinFileManager::getSavePath(const std::string name) const
     return std::filesystem::path(path);
 }
 
-#elif __APPLE__
-
-std::filesystem::path MacFileManager::getSavePath(const std::string name) const
-{
-    return "";
-}
-
-#else
+#elif __linux__
 
 std::filesystem::path LinuxFileManager::getSavePath(const std::string name) const
 {
