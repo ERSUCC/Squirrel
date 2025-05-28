@@ -684,7 +684,9 @@ Message* BSDTCPSocket::receive() const
         {
             return nullptr;
         }
-    } while (buffer[n] != '\0');
+
+        stream << buffer;
+    } while (n > 0);
 
     return Message::deserialize(stream);
 }
