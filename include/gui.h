@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 
 #include "network.h"
 
@@ -33,6 +34,8 @@ private:
 
     int width = 500;
     int height = 500;
+
+    TTF_Font* font;
 
     std::chrono::high_resolution_clock clock;
     std::chrono::time_point<std::chrono::high_resolution_clock> lastFrame;

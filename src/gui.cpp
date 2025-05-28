@@ -7,10 +7,17 @@ GUI::GUI(NetworkManager* network) :
     SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_RESIZABLE, &window, &renderer);
     SDL_SetWindowTitle(window, "Squirrel");
     SDL_AddEventWatch(eventWatch, this);
+
+    TTF_Init();
+
+    font = TTF_OpenFont("resources/fonts/OpenSans-Variable.ttf", 12);
 }
 
 GUI::~GUI()
 {
+    TTF_CloseFont(font);
+    TTF_Quit();
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
