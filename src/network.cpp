@@ -11,7 +11,7 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string)>
         return;
     }
 
-    if (!udpSocket->bindTo("0.0.0.0", 4242))
+    if (!udpSocket->socketBind("0.0.0.0", UDP_PORT))
     {
         handleError("Failed to bind socket.");
 
@@ -42,7 +42,7 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string)>
                     { "ip", new JSONString(address) }
                 }));
 
-                if (!udpSocket->sendTo(broadcastMessage, "255.255.255.255", 4242))
+                if (!udpSocket->socketSend(broadcastMessage, "255.255.255.255", UDP_PORT))
                 {
                     handleError("Failed to broadcast message.");
 
@@ -80,7 +80,7 @@ void NetworkManager::beginListen(const std::function<void(const std::string)> ha
         return;
     }
 
-    if (!udpSocket->bindTo("0.0.0.0", 4242))
+    if (!udpSocket->socketBind("0.0.0.0", UDP_PORT))
     {
         handleError("Failed to bind socket.");
 
@@ -110,12 +110,14 @@ void NetworkManager::beginListen(const std::function<void(const std::string)> ha
                         { "ip", new JSONString(address) }
                     }));
 
-                    if (!udpSocket->sendTo(response, ip.value(), 4242))
+                    if (!udpSocket->socketSend(response, ip.value(), UDP_PORT))
                     {
                         handleError("Failed to respond to broadcast.");
 
                         return;
                     }
+
+                    beginReceive(ip.value(), handleError);
                 }
             }
         }
@@ -124,6 +126,15 @@ void NetworkManager::beginListen(const std::function<void(const std::string)> ha
 
 void NetworkManager::beginTransfer(const std::filesystem::path path, const std::string ip, const std::function<void(const std::string)> handleError)
 {
+    const std::string address = getAddress();
+
+    if (address.empty())
+    {
+        handleError("Failed to find a valid network interface.");
+
+        return;
+    }
+
     std::ifstream file(path, std::ios_base::binary);
 
     if (!file.is_open())
@@ -145,6 +156,7 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
     const Message* message = new Message(new JSONObject(
     {
         { "type", new JSONString("transfer") },
+        { "ip", new JSONString(address) },
         { "name", new JSONString(name) },
         { "data", new JSONString(data) }
     }));
@@ -166,19 +178,92 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
     transferThread = std::thread([=]()
     {
-        if (!tcpSocket->connectTo(ip, 4242))
+        if (!tcpSocket->socketConnect(ip, TCP_PORT))
         {
             handleError("Failed to connect to socket.");
 
             return;
         }
 
-        if (!tcpSocket->sendMessage(message))
+        if (!tcpSocket->socketSend(message))
         {
             handleError("Failed to transfer file.");
 
             return;
         }
+
+        if (!tcpSocket->destroy())
+        {
+            handleError("Failed to destroy socket.");
+        }
+    });
+}
+
+void NetworkManager::beginReceive(const std::string ip, const std::function<void(const std::string)> handleError)
+{
+    if (tcpSocket)
+    {
+        return;
+    }
+
+    tcpSocket = newTCPSocket();
+
+    if (!tcpSocket->create())
+    {
+        handleError("Failed to create socket.");
+
+        return;
+    }
+
+    const std::string address = getAddress();
+
+    if (address.empty())
+    {
+        handleError("Failed to find a valid network interface.");
+
+        return;
+    }
+
+    if (!tcpSocket->socketBind(address, TCP_PORT))
+    {
+        handleError("Failed to bind socket.");
+
+        return;
+    }
+
+    if (!tcpSocket->socketListen())
+    {
+        handleError("Failed to listen on socket.");
+
+        return;
+    }
+
+    transferThread = std::thread([=]()
+    {
+        if (!tcpSocket->socketAccept())
+        {
+            handleError("Failed to accept connection.");
+
+            return;
+        }
+
+        const Message* message = tcpSocket->receive();
+
+        if (!message)
+        {
+            handleError("Failed to receive file.");
+
+            return;
+        }
+
+        if (message->data->getProperty("ip")->asString().value_or("") != ip)
+        {
+            handleError("Invalid connection.");
+
+            return;
+        }
+
+        std::cout << "received file: " << message->data->getProperty("name")->asString().value() << "\n";
 
         if (!tcpSocket->destroy())
         {
@@ -203,7 +288,7 @@ bool WinUDPSocket::create()
     return setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, (char*)&val, sizeof(bool)) != SOCKET_ERROR;
 }
 
-bool WinUDPSocket::bindTo(const std::string address, const unsigned int port) const
+bool WinUDPSocket::socketBind(const std::string address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -216,7 +301,7 @@ bool WinUDPSocket::bindTo(const std::string address, const unsigned int port) co
     return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR;
 }
 
-bool WinUDPSocket::sendTo(const Message* message, const std::string address, const unsigned int port) const
+bool WinUDPSocket::socketSend(const Message* message, const std::string address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -275,7 +360,20 @@ bool WinTCPSocket::create()
     return socketHandle != INVALID_SOCKET;
 }
 
-bool WinTCPSocket::connectTo(const std::string address, const unsigned int port) const
+bool WinTCPSocket::socketBind(const std::string address, const unsigned int port) const
+{
+    sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = inet_addr(address.c_str());
+
+    return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR;
+}
+
+bool WinTCPSocket::socketConnect(const std::string address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -288,7 +386,31 @@ bool WinTCPSocket::connectTo(const std::string address, const unsigned int port)
     return connect(socketHandle, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR;
 }
 
-bool WinTCPSocket::sendMessage(const Message* message) const
+bool WinTCPSocket::socketListen() const
+{
+    return listen(socketHandle, 1) != SOCKET_ERROR;
+}
+
+bool WinTCPSocket::socketAccept()
+{
+    SOCKET clientHandle = accept(socketHandle, nullptr, nullptr);
+
+    if (clientHandle == INVALID_SOCKET)
+    {
+        return false;
+    }
+
+    if (closesocket(socketHandle) == SOCKET_ERROR)
+    {
+        return false;
+    }
+
+    socketHandle = clientHandle;
+
+    return true;
+}
+
+bool WinTCPSocket::socketSend(const Message* message) const
 {
     std::stringstream stream;
 
@@ -317,7 +439,9 @@ Message* WinTCPSocket::receive() const
         {
             return nullptr;
         }
-    } while (buffer[n] != '\0');
+
+        stream << buffer;
+    } while (n > 0);
 
     return Message::deserialize(stream);
 }
@@ -419,7 +543,7 @@ bool BSDUDPSocket::create()
     return setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) == 0;
 }
 
-bool BSDUDPSocket::bindTo(const std::string address, const unsigned int port) const
+bool BSDUDPSocket::socketBind(const std::string address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -432,7 +556,7 @@ bool BSDUDPSocket::bindTo(const std::string address, const unsigned int port) co
     return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) == 0;
 }
 
-bool BSDUDPSocket::sendTo(const Message* message, const std::string address, const unsigned int port) const
+bool BSDUDPSocket::socketSend(const Message* message, const std::string address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -486,7 +610,20 @@ bool BSDTCPSocket::create()
     return socketHandle != -1;
 }
 
-bool BSDTCPSocket::connectTo(const std::string address, const unsigned int port) const
+bool BSDTCPSocket::socketBind(const std::string address, const unsigned int port) const
+{
+    sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = inet_addr(address.c_str());
+
+    return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) == 0;
+}
+
+bool BSDTCPSocket::socketConnect(const std::string address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -499,7 +636,26 @@ bool BSDTCPSocket::connectTo(const std::string address, const unsigned int port)
     return connect(socketHandle, (sockaddr*)&addr, sizeof(addr)) == 0;
 }
 
-bool BSDTCPSocket::sendMessage(const Message* message) const
+bool BSDTCPSocket::socketListen() const
+{
+    return listen(socketHandle, 1) == 0;
+}
+
+bool BSDTCPSocket::socketAccept()
+{
+    int clientHandle = accept(socketHandle, nullptr, nullptr);
+
+    if (clientHandle == -1)
+    {
+        return false;
+    }
+
+    socketHandle = clientHandle;
+
+    return true;
+}
+
+bool BSDTCPSocket::socketSend(const Message* message) const
 {
     std::stringstream stream;
 

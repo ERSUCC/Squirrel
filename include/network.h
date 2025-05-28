@@ -12,13 +12,16 @@
 #include "base64.h"
 #include "json.h"
 
+#define UDP_PORT 4242
+#define TCP_PORT 4244
+
 #define BUFFER_SIZE 512
 
 struct UDPSocket
 {
     virtual bool create() = 0;
-    virtual bool bindTo(const std::string address, const unsigned int port) const = 0;
-    virtual bool sendTo(const Message* message, const std::string address, const unsigned int port) const = 0;
+    virtual bool socketBind(const std::string address, const unsigned int port) const = 0;
+    virtual bool socketSend(const Message* message, const std::string address, const unsigned int port) const = 0;
 
     virtual Message* receive() const = 0;
 
@@ -28,8 +31,11 @@ struct UDPSocket
 struct TCPSocket
 {
     virtual bool create() = 0;
-    virtual bool connectTo(const std::string address, const unsigned int port) const = 0;
-    virtual bool sendMessage(const Message* message) const = 0;
+    virtual bool socketBind(const std::string address, const unsigned int port) const = 0;
+    virtual bool socketConnect(const std::string address, const unsigned int port) const = 0;
+    virtual bool socketListen() const = 0;
+    virtual bool socketAccept() = 0;
+    virtual bool socketSend(const Message* message) const = 0;
 
     virtual Message* receive() const = 0;
 
@@ -41,6 +47,7 @@ struct NetworkManager
     void beginBroadcast(const std::function<void(const std::string)> handleResponse, const std::function<void(const std::string)> handleError);
     void beginListen(const std::function<void(const std::string)> handleError);
     void beginTransfer(const std::filesystem::path path, const std::string ip, const std::function<void(const std::string)> handleError);
+    void beginReceive(const std::string ip, const std::function<void(const std::string)> handleError);
 
 protected:
     virtual UDPSocket* newUDPSocket() const = 0;
@@ -68,8 +75,8 @@ private:
 struct WinUDPSocket : public UDPSocket
 {
     bool create() override;
-    bool bindTo(const std::string address, const unsigned int port) const override;
-    bool sendTo(const Message* message, const std::string address, const unsigned int port) const override;
+    bool socketBind(const std::string address, const unsigned int port) const override;
+    bool socketSend(const Message* message, const std::string address, const unsigned int port) const override;
 
     Message* receive() const override;
 
@@ -83,8 +90,11 @@ private:
 struct WinTCPSocket : public TCPSocket
 {
     bool create() override;
-    bool connectTo(const std::string address, const unsigned int port) const override;
-    bool sendMessage(const Message* message) const override;
+    bool socketBind(const std::string address, const unsigned int port) const override;
+    bool socketConnect(const std::string address, const unsigned int port) const override;
+    bool socketListen() const override;
+    bool socketAccept() override;
+    bool socketSend(const Message* message) const override;
 
     Message* receive() const override;
 
@@ -118,8 +128,8 @@ protected:
 struct BSDUDPSocket : public UDPSocket
 {
     bool create() override;
-    bool bindTo(const std::string address, const unsigned int port) const override;
-    bool sendTo(const Message* message, const std::string address, const unsigned int port) const override;
+    bool socketBind(const std::string address, const unsigned int port) const override;
+    bool socketSend(const Message* message, const std::string address, const unsigned int port) const override;
 
     Message* receive() const override;
 
@@ -133,8 +143,11 @@ private:
 struct BSDTCPSocket : public TCPSocket
 {
     bool create() override;
-    bool connectTo(const std::string address, const unsigned int port) const override;
-    bool sendMessage(const Message* message) const override;
+    bool socketBind(const std::string address, const unsigned int port) const override;
+    bool socketConnect(const std::string address, const unsigned int port) const override;
+    bool socketListen() const override;
+    bool socketAccept() override;
+    bool socketSend(const Message* message) const override;
 
     Message* receive() const override;
 
