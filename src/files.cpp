@@ -58,7 +58,24 @@ std::filesystem::path WinFileManager::getSavePath(const std::string name) const
 
 std::filesystem::path LinuxFileManager::getSavePath(const std::string name) const
 {
-    return "";
+    const std::string cmd = std::string("zenity --file-selection --save --title \"Save File\" --filename \"") + name + "\"";
+
+    FILE* proc = popen(cmd.c_str(), "r");
+
+    char buffer[PATH_MAX + 1];
+
+    unsigned int read = fread(buffer, sizeof(char), PATH_MAX, proc);
+
+    pclose(proc);
+
+    if (read == 0)
+    {
+        return "";
+    }
+
+    buffer[read - 1] = '\0';
+
+    return buffer;
 }
 
 #endif

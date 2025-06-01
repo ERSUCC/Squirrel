@@ -27,6 +27,9 @@ struct MacFileManager : public FileManager
 
 #else
 
+#include <limits.h>
+#include <stdio.h>
+
 struct LinuxFileManager : public FileManager
 {
     std::filesystem::path getSavePath(const std::string name) const override;
