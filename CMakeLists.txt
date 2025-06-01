@@ -38,7 +38,7 @@ elseif(APPLE)
                                              "/opt/homebrew/Cellar/sdl2_ttf/2.24.0/lib")
 
     target_link_libraries(squirrel "-framework CoreFoundation" "-framework AppKit" sdl2 sdl2_ttf)
-else
+else()
     target_include_directories(squirrel PRIVATE "/usr/include/SDL2"
                                                 "/usr/include/SDL2_ttf")
 
