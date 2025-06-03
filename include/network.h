@@ -44,6 +44,8 @@ struct TCPSocket
 
 struct NetworkManager
 {
+    NetworkManager(const std::string address);
+
     void beginBroadcast(const std::function<void(const std::string)> handleResponse, const std::function<void(const std::string)> handleError);
     void beginListen(const std::function<void(const std::string, const std::string&)> handleReceive, const std::function<void(const std::string)> handleError);
     void beginTransfer(const std::filesystem::path path, const std::string ip, const std::function<void(const std::string)> handleError);
@@ -56,6 +58,8 @@ protected:
     virtual std::string getAddress() const = 0;
 
 private:
+    const std::string address;
+
     UDPSocket* udpSocket = nullptr;
     TCPSocket* tcpSocket = nullptr;
 
@@ -160,6 +164,7 @@ private:
 
 struct BSDNetworkManager : public NetworkManager
 {
+    BSDNetworkManager();
 
 protected:
     UDPSocket* newUDPSocket() const override;

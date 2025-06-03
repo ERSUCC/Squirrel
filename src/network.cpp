@@ -1,5 +1,8 @@
 #include "../include/network.h"
 
+NetworkManager::NetworkManager(const std::string address) :
+    address(address) {}
+
 void NetworkManager::beginBroadcast(const std::function<void(const std::string)> handleResponse, const std::function<void(const std::string)> handleError)
 {
     udpSocket = newUDPSocket();
@@ -11,14 +14,12 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string)>
         return;
     }
 
-    if (!udpSocket->socketBind("0.0.0.0", UDP_PORT))
+    if (!udpSocket->socketBind(address, UDP_PORT))
     {
         handleError("Failed to bind socket.");
 
         return;
     }
-
-    const std::string address = getAddress();
 
     if (address.empty())
     {
@@ -80,14 +81,12 @@ void NetworkManager::beginListen(const std::function<void(const std::string, con
         return;
     }
 
-    if (!udpSocket->socketBind("0.0.0.0", UDP_PORT))
+    if (!udpSocket->socketBind(address, UDP_PORT))
     {
         handleError("Failed to bind socket.");
 
         return;
     }
-
-    const std::string address = getAddress();
 
     if (address.empty())
     {
@@ -126,8 +125,6 @@ void NetworkManager::beginListen(const std::function<void(const std::string, con
 
 void NetworkManager::beginTransfer(const std::filesystem::path path, const std::string ip, const std::function<void(const std::string)> handleError)
 {
-    const std::string address = getAddress();
-
     if (address.empty())
     {
         handleError("Failed to find a valid network interface.");
@@ -214,8 +211,6 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
         return;
     }
-
-    const std::string address = getAddress();
 
     if (address.empty())
     {
@@ -475,7 +470,8 @@ bool WinTCPSocket::destroy()
     return true;
 }
 
-WinNetworkManager::WinNetworkManager()
+WinNetworkManager::WinNetworkManager() :
+    NetworkManager(getAddress())
 {
     WSADATA wsaData;
 
@@ -719,6 +715,9 @@ bool BSDTCPSocket::destroy()
 
     return true;
 }
+
+BSDNetworkManager::BSDNetworkManager() :
+    NetworkManager(getAddress()) {}
 
 UDPSocket* BSDNetworkManager::newUDPSocket() const
 {
