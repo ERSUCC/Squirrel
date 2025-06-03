@@ -81,7 +81,7 @@ void NetworkManager::beginListen(const std::function<void(const std::string, con
         return;
     }
 
-    if (!udpSocket->socketBind(address, UDP_PORT))
+    if (!udpSocket->socketBind("0.0.0.0", UDP_PORT))
     {
         handleError("Failed to bind socket.");
 
