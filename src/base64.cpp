@@ -45,13 +45,13 @@ std::string Base64::decode(const std::string str)
 
     if (str.size() - truncated == 2)
     {
-        result += base64ToAscii(str[truncated]) << 2;
+        result += (base64ToAscii(str[truncated]) << 2) | (base64ToAscii(str[truncated + 1]) >> 4);
     }
 
     else if (str.size() - truncated == 3)
     {
         result += (base64ToAscii(str[truncated]) << 2) | (base64ToAscii(str[truncated + 1]) >> 4);
-        result += base64ToAscii(str[truncated + 1]) << 4;
+        result += (base64ToAscii(str[truncated + 1]) << 4) | (base64ToAscii(str[truncated + 2]) >> 2);
     }
 
     return result;
