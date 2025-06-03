@@ -1,29 +1,28 @@
 #include "../include/network.h"
 
-NetworkManager::NetworkManager(const std::string address) :
-    address(address) {}
+NetworkManager::NetworkManager(ErrorHandler* errorHandler, const std::string address) :
+    errorHandler(errorHandler), address(address)
+{
+    if (address.empty())
+    {
+        errorHandler->push(SquirrelSocketException("Failed to find a valid network interface."));
+    }
+}
 
-void NetworkManager::beginBroadcast(const std::function<void(const std::string)> handleResponse, const std::function<void(const std::string)> handleError)
+void NetworkManager::beginBroadcast(const std::function<void(const std::string)> handleResponse)
 {
     udpSocket = newUDPSocket();
 
     if (!udpSocket->create())
     {
-        handleError("Failed to create socket.");
+        errorHandler->push(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
 
     if (!udpSocket->socketBind(address, UDP_PORT))
     {
-        handleError("Failed to bind socket.");
-
-        return;
-    }
-
-    if (address.empty())
-    {
-        handleError("Failed to find a valid network interface.");
+        errorHandler->push(SquirrelSocketException("Failed to bind socket."));
 
         return;
     }
@@ -45,7 +44,7 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string)>
 
                 if (!udpSocket->socketSend(broadcastMessage, "255.255.255.255", UDP_PORT))
                 {
-                    handleError("Failed to broadcast message.");
+                    errorHandler->push(SquirrelSocketException("Failed to broadcast message."));
 
                     return;
                 }
@@ -70,27 +69,20 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string)>
     });
 }
 
-void NetworkManager::beginListen(const std::function<void(const std::string, const std::string&)> handleReceive, const std::function<void(const std::string)> handleError)
+void NetworkManager::beginListen(const std::function<void(const std::string, const std::string&)> handleReceive)
 {
     udpSocket = newUDPSocket();
 
     if (!udpSocket->create())
     {
-        handleError("Failed to create socket.");
+        errorHandler->push(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
 
     if (!udpSocket->socketBind("0.0.0.0", UDP_PORT))
     {
-        handleError("Failed to bind socket.");
-
-        return;
-    }
-
-    if (address.empty())
-    {
-        handleError("Failed to find a valid network interface.");
+        errorHandler->push(SquirrelSocketException("Failed to bind socket."));
 
         return;
     }
@@ -111,32 +103,25 @@ void NetworkManager::beginListen(const std::function<void(const std::string, con
 
                     if (!udpSocket->socketSend(response, ip.value(), UDP_PORT))
                     {
-                        handleError("Failed to respond to broadcast.");
+                        errorHandler->push(SquirrelSocketException("Failed to respond to broadcast."));
 
                         return;
                     }
 
-                    beginReceive(ip.value(), handleReceive, handleError);
+                    beginReceive(ip.value(), handleReceive);
                 }
             }
         }
     });
 }
 
-void NetworkManager::beginTransfer(const std::filesystem::path path, const std::string ip, const std::function<void(const std::string)> handleError)
+void NetworkManager::beginTransfer(const std::filesystem::path path, const std::string ip)
 {
-    if (address.empty())
-    {
-        handleError("Failed to find a valid network interface.");
-
-        return;
-    }
-
     std::ifstream file(path, std::ios_base::binary);
 
     if (!file.is_open())
     {
-        handleError("Failed to open specified file.");
+        errorHandler->push(SquirrelFileException("Failed to open specified file."));
 
         return;
     }
@@ -168,7 +153,7 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
     if (!tcpSocket->create())
     {
-        handleError("Failed to create socket.");
+        errorHandler->push(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
@@ -177,26 +162,26 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
     {
         if (!tcpSocket->socketConnect(ip, TCP_PORT))
         {
-            handleError("Failed to connect to socket.");
+            errorHandler->push(SquirrelSocketException("Failed to connect to socket."));
 
             return;
         }
 
         if (!tcpSocket->socketSend(message))
         {
-            handleError("Failed to transfer file.");
+            errorHandler->push(SquirrelSocketException("Failed to transfer file."));
 
             return;
         }
 
         if (!tcpSocket->destroy())
         {
-            handleError("Failed to destroy socket.");
+            errorHandler->push(SquirrelSocketException("Failed to destroy socket."));
         }
     });
 }
 
-void NetworkManager::beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive, const std::function<void(const std::string)> handleError)
+void NetworkManager::beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive)
 {
     if (tcpSocket)
     {
@@ -207,28 +192,21 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
     if (!tcpSocket->create())
     {
-        handleError("Failed to create socket.");
-
-        return;
-    }
-
-    if (address.empty())
-    {
-        handleError("Failed to find a valid network interface.");
+        errorHandler->push(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
 
     if (!tcpSocket->socketBind(address, TCP_PORT))
     {
-        handleError("Failed to bind socket.");
+        errorHandler->push(SquirrelSocketException("Failed to bind socket."));
 
         return;
     }
 
     if (!tcpSocket->socketListen())
     {
-        handleError("Failed to listen on socket.");
+        errorHandler->push(SquirrelSocketException("Failed to listen on socket."));
 
         return;
     }
@@ -237,7 +215,7 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
     {
         if (!tcpSocket->socketAccept())
         {
-            handleError("Failed to accept connection.");
+            errorHandler->push(SquirrelSocketException("Failed to accept connection."));
 
             return;
         }
@@ -246,14 +224,14 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
         if (!message)
         {
-            handleError("Failed to receive file.");
+            errorHandler->push(SquirrelSocketException("Failed to receive file."));
 
             return;
         }
 
         if (message->data->getProperty("ip")->asString().value_or("") != ip)
         {
-            handleError("Invalid connection.");
+            errorHandler->push(SquirrelSocketException("Invalid connection."));
 
             return;
         }
@@ -263,7 +241,7 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
         if (!name || !data)
         {
-            handleError("Received incorrect message format.");
+            errorHandler->push(SquirrelSocketException("Received incorrect message format."));
 
             return;
         }
@@ -272,7 +250,7 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
         if (!tcpSocket->destroy())
         {
-            handleError("Failed to destroy socket.");
+            errorHandler->push(SquirrelSocketException("Failed to destroy socket."));
 
             return;
         }
@@ -470,8 +448,8 @@ bool WinTCPSocket::destroy()
     return true;
 }
 
-WinNetworkManager::WinNetworkManager() :
-    NetworkManager(getAddress())
+WinNetworkManager::WinNetworkManager(ErrorHandler* errorHandler) :
+    NetworkManager(errorHandler, getAddress())
 {
     WSADATA wsaData;
 
@@ -716,8 +694,8 @@ bool BSDTCPSocket::destroy()
     return true;
 }
 
-BSDNetworkManager::BSDNetworkManager() :
-    NetworkManager(getAddress()) {}
+BSDNetworkManager::BSDNetworkManager(ErrorHandler* errorHandler) :
+    NetworkManager(errorHandler, getAddress()) {}
 
 UDPSocket* BSDNetworkManager::newUDPSocket() const
 {

@@ -7,7 +7,6 @@
 #include <iostream>
 #include <mutex>
 #include <optional>
-#include <queue>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -15,25 +14,14 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
+#include "errors.h"
 #include "network.h"
 #include "files.h"
-
-struct ThreadSafeQueue
-{
-    void push(std::function<void()> operation);
-
-    std::optional<std::function<void()>> pop();
-
-private:
-    std::mutex lock;
-
-    std::queue<std::function<void()>> operations;
-
-};
+#include "safe_queue.hpp"
 
 struct GUI
 {
-    GUI(NetworkManager* networkManager, FileManager* fileManager);
+    GUI(ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager);
     ~GUI();
 
     void setupEmpty();
@@ -58,10 +46,11 @@ private:
     std::chrono::high_resolution_clock clock;
     std::chrono::time_point<std::chrono::high_resolution_clock> lastFrame;
 
+    ErrorHandler* errorHandler;
     NetworkManager* networkManager;
     FileManager* fileManager;
 
-    ThreadSafeQueue* mainThreadQueue = new ThreadSafeQueue();
+    ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
 
     std::vector<std::string> availableTargets;
 

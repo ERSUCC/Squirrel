@@ -5,7 +5,9 @@ project(squirrel)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-set(SQUIRREL_SOURCES src/base64.cpp
+set(SQUIRREL_SOURCES include/safe_queue.hpp
+                     src/base64.cpp
+                     src/errors.cpp
                      src/files.cpp
                      src/gui.cpp
                      src/json.cpp

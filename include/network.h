@@ -7,9 +7,9 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <thread>
 
 #include "base64.h"
+#include "errors.h"
 #include "json.h"
 
 #define UDP_PORT 4242
@@ -44,14 +44,16 @@ struct TCPSocket
 
 struct NetworkManager
 {
-    NetworkManager(const std::string address);
+    NetworkManager(ErrorHandler* errorHandler, const std::string address);
 
-    void beginBroadcast(const std::function<void(const std::string)> handleResponse, const std::function<void(const std::string)> handleError);
-    void beginListen(const std::function<void(const std::string, const std::string&)> handleReceive, const std::function<void(const std::string)> handleError);
-    void beginTransfer(const std::filesystem::path path, const std::string ip, const std::function<void(const std::string)> handleError);
-    void beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive, const std::function<void(const std::string)> handleError);
+    void beginBroadcast(const std::function<void(const std::string)> handleResponse);
+    void beginListen(const std::function<void(const std::string, const std::string&)> handleReceive);
+    void beginTransfer(const std::filesystem::path path, const std::string ip);
+    void beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive);
 
 protected:
+    ErrorHandler* errorHandler;
+
     virtual UDPSocket* newUDPSocket() const = 0;
     virtual TCPSocket* newTCPSocket() const = 0;
 
@@ -111,7 +113,7 @@ private:
 
 struct WinNetworkManager : public NetworkManager
 {
-    WinNetworkManager();
+    WinNetworkManager(ErrorHandler* errorHandler);
     ~WinNetworkManager();
 
 protected:
@@ -164,7 +166,7 @@ private:
 
 struct BSDNetworkManager : public NetworkManager
 {
-    BSDNetworkManager();
+    BSDNetworkManager(ErrorHandler* errorHandler);
 
 protected:
     UDPSocket* newUDPSocket() const override;

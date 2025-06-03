@@ -2,9 +2,9 @@
 #include "../include/network.h"
 #include "../include/files.h"
 
-void init(const int argc, char** argv, NetworkManager* networkManager, FileManager* fileManager)
+void init(const int argc, char** argv, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager)
 {
-    GUI* gui = new GUI(networkManager, fileManager);
+    GUI* gui = new GUI(errorHandler, networkManager, fileManager);
 
     if (argc == 0)
     {
@@ -27,6 +27,8 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
 
     freopen("CONOUT$", "w", stdout); // this too
 
+    ErrorHandler* errorHandler = new ErrorHandler();
+
     if (wcsnlen(pCmdLine, 1) > 0)
     {
         int argc = 0;
@@ -46,12 +48,12 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
             argvChar[i][length] = '\0';
         }
 
-        init(argc, argvChar, new WinNetworkManager(), new WinFileManager());
+        init(argc, argvChar, errorHandler, new WinNetworkManager(errorHandler), new WinFileManager());
     }
 
     else
     {
-        init(0, nullptr, new WinNetworkManager(), new WinFileManager());
+        init(0, nullptr, errorHandler, new WinNetworkManager(errorHandler), new WinFileManager());
     }
 
     return 0;
@@ -61,7 +63,9 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
 
 int main(int argc, char** argv)
 {
-    init(argc - 1, argv + 1, new BSDNetworkManager(), new MacFileManager());
+    ErrorHandler* errorHandler = new ErrorHandler();
+
+    init(argc - 1, argv + 1, errorHandler, new BSDNetworkManager(errorHandler), new MacFileManager());
 
     return 0;
 }
@@ -70,7 +74,9 @@ int main(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-    init(argc - 1, argv + 1, new BSDNetworkManager(), new LinuxFileManager());
+    ErrorHandler* errorHandler = new ErrorHandler();
+
+    init(argc - 1, argv + 1, errorHandler, new BSDNetworkManager(errorHandler), new LinuxFileManager());
 
     return 0;
 }

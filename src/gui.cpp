@@ -1,36 +1,7 @@
 #include "gui.h"
 
-void ThreadSafeQueue::push(std::function<void()> operation)
-{
-    lock.lock();
-
-    operations.push(operation);
-
-    lock.unlock();
-}
-
-std::optional<std::function<void()>> ThreadSafeQueue::pop()
-{
-    lock.lock();
-
-    if (operations.empty())
-    {
-        lock.unlock();
-
-        return std::nullopt;
-    }
-
-    std::function<void()> operation = operations.front();
-
-    operations.pop();
-
-    lock.unlock();
-
-    return operation;
-}
-
-GUI::GUI(NetworkManager* networkManager, FileManager* fileManager) :
-    networkManager(networkManager), fileManager(fileManager)
+GUI::GUI(ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager) :
+    errorHandler(errorHandler), networkManager(networkManager), fileManager(fileManager)
 {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_RESIZABLE, &window, &renderer);
@@ -64,7 +35,7 @@ void GUI::setupEmpty()
 
             if (!file.is_open())
             {
-                std::cout << "Failed to save file.\n";
+                errorHandler->push(SquirrelFileException("Failed to save file."));
 
                 return;
             }
@@ -73,9 +44,6 @@ void GUI::setupEmpty()
 
             file.close();
         });
-    }, [](const std::string error)
-    {
-        std::cout << error << "\n";
     });
 }
 
@@ -83,10 +51,7 @@ void GUI::setupSend(const std::string path)
 {
     this->path = path;
 
-    networkManager->beginBroadcast(std::bind(&GUI::handleResponse, this, std::placeholders::_1), [](const std::string error)
-    {
-        std::cout << error << "\n";
-    });
+    networkManager->beginBroadcast(std::bind(&GUI::handleResponse, this, std::placeholders::_1));
 }
 
 void GUI::run()
@@ -99,6 +64,11 @@ void GUI::run()
 
     while (running)
     {
+        while (std::optional<SquirrelException> error = errorHandler->pop())
+        {
+            std::cout << error.value().what() << "\n";
+        }
+
         while (SDL_PollEvent(&event))
         {
             switch (event.type)
@@ -114,10 +84,7 @@ void GUI::run()
 
                     if (!availableTargets.empty())
                     {
-                        networkManager->beginTransfer(path, availableTargets[0], [](const std::string error)
-                        {
-                            std::cout << error << "\n";
-                        });
+                        networkManager->beginTransfer(path, availableTargets[0]);
                     }
 
                     renderLock.unlock();
