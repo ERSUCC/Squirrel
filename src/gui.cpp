@@ -1,6 +1,6 @@
 #include "gui.h"
 
-void ThreadSafeQueue::push(const std::function<void()> operation)
+void ThreadSafeQueue::push(std::function<void()> operation)
 {
     lock.lock();
 
@@ -9,7 +9,7 @@ void ThreadSafeQueue::push(const std::function<void()> operation)
     lock.unlock();
 }
 
-std::optional<const std::function<void()>> ThreadSafeQueue::pop()
+std::optional<std::function<void()>> ThreadSafeQueue::pop()
 {
     lock.lock();
 
@@ -20,7 +20,7 @@ std::optional<const std::function<void()>> ThreadSafeQueue::pop()
         return std::nullopt;
     }
 
-    const std::function<void()> operation = operations.front();
+    std::function<void()> operation = operations.front();
 
     operations.pop();
 

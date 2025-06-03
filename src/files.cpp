@@ -6,7 +6,7 @@ std::filesystem::path WinFileManager::getSavePath(const std::string name) const
 {
     IFileDialog* dialog;
 
-    if (!SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
+    if (!SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)))
     {
         return "";
     }

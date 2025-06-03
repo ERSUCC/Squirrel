@@ -20,14 +20,14 @@
 
 struct ThreadSafeQueue
 {
-    void push(const std::function<void()> operation);
+    void push(std::function<void()> operation);
 
-    std::optional<const std::function<void()>> pop();
+    std::optional<std::function<void()>> pop();
 
 private:
     std::mutex lock;
 
-    std::queue<const std::function<void()>> operations;
+    std::queue<std::function<void()>> operations;
 
 };
 
