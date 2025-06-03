@@ -1,5 +1,34 @@
 #include "gui.h"
 
+void ThreadSafeQueue::push(const std::function<void()> operation)
+{
+    lock.lock();
+
+    operations.push(operation);
+
+    lock.unlock();
+}
+
+std::optional<const std::function<void()>> ThreadSafeQueue::pop()
+{
+    lock.lock();
+
+    if (operations.empty())
+    {
+        lock.unlock();
+
+        return std::nullopt;
+    }
+
+    const std::function<void()> operation = operations.front();
+
+    operations.pop();
+
+    lock.unlock();
+
+    return operation;
+}
+
 GUI::GUI(NetworkManager* networkManager, FileManager* fileManager) :
     networkManager(networkManager), fileManager(fileManager)
 {
@@ -27,20 +56,23 @@ void GUI::setupEmpty()
 {
     networkManager->beginListen([=](const std::string name, const std::string& data)
     {
-        const std::filesystem::path path = fileManager->getSavePath(name);
-
-        std::ofstream file(path);
-
-        if (!file.is_open())
+        mainThreadQueue->push([=]()
         {
-            std::cout << "Failed to save file.\n";
+            const std::filesystem::path path = fileManager->getSavePath(name);
 
-            return;
-        }
+            std::ofstream file(path);
 
-        file << data;
+            if (!file.is_open())
+            {
+                std::cout << "Failed to save file.\n";
 
-        file.close();
+                return;
+            }
+
+            file << data;
+
+            file.close();
+        });
     }, [](const std::string error)
     {
         std::cout << error << "\n";
@@ -92,6 +124,11 @@ void GUI::run()
 
                     break;
             }
+        }
+
+        while (std::optional<std::function<void()>> operation = mainThreadQueue->pop())
+        {
+            operation.value()();
         }
 
         if ((clock.now() - lastFrame).count() >= 1e9 / 60)

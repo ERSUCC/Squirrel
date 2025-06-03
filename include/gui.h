@@ -6,6 +6,8 @@
 #include <functional>
 #include <iostream>
 #include <mutex>
+#include <optional>
+#include <queue>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -15,6 +17,19 @@
 
 #include "network.h"
 #include "files.h"
+
+struct ThreadSafeQueue
+{
+    void push(const std::function<void()> operation);
+
+    std::optional<const std::function<void()>> pop();
+
+private:
+    std::mutex lock;
+
+    std::queue<const std::function<void()>> operations;
+
+};
 
 struct GUI
 {
@@ -45,6 +60,8 @@ private:
 
     NetworkManager* networkManager;
     FileManager* fileManager;
+
+    ThreadSafeQueue* mainThreadQueue = new ThreadSafeQueue();
 
     std::vector<std::string> availableTargets;
 

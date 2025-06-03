@@ -258,13 +258,6 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
             return;
         }
 
-        if (!tcpSocket->destroy())
-        {
-            handleError("Failed to destroy socket.");
-
-            return;
-        }
-
         const std::optional<std::string> name = message->data->getProperty("name")->asString();
         const std::optional<std::string> data = message->data->getProperty("data")->asString();
 
@@ -276,6 +269,13 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
         }
 
         handleReceive(name.value(), Base64::decode(data.value()));
+
+        if (!tcpSocket->destroy())
+        {
+            handleError("Failed to destroy socket.");
+
+            return;
+        }
     });
 }
 
