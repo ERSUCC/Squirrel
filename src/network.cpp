@@ -517,9 +517,14 @@ std::string WinNetworkManager::getAddress() const
 
     while (addrs)
     {
-        if (addrs->IfType != IF_TYPE_SOFTWARE_LOOPBACK && addrs->OperStatus == IfOperStatusUp)
+        NL_NETWORK_CONNECTIVITY_HINT hint;
+
+        if (GetNetworkConnectivityHintForInterface(addrs->IfIndex, &hint) == NO_ERROR && hint.ConnectivityLevel == NetworkConnectivityLevelHintInternetAccess)
         {
-            break;
+            if (addrs->IfType != IF_TYPE_SOFTWARE_LOOPBACK && addrs->OperStatus == IfOperStatusUp)
+            {
+                break;
+            }
         }
 
         addrs = addrs->Next;
