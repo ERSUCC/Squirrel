@@ -3,7 +3,7 @@
 SquirrelException::SquirrelException(const std::string message) :
     message(message) {}
 
-const char* SquirrelException::what() const
+const char* SquirrelException::what() const noexcept
 {
     return message.c_str();
 }

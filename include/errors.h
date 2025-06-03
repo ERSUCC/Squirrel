@@ -8,7 +8,7 @@ struct SquirrelException : public std::exception
 {
     SquirrelException(const std::string message);
 
-    const char* what() const override;
+    const char* what() const noexcept override;
 
 private:
     const std::string message;
