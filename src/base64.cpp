@@ -8,22 +8,22 @@ std::string Base64::encode(const std::string str)
 
     for (unsigned int i = 0; i < truncated; i += 3)
     {
-        result += ALPHABET[str[i] >> 2];
-        result += ALPHABET[((str[i] & 0b00000011) << 4) | (str[i + 1] >> 4)];
-        result += ALPHABET[((str[i + 1] & 0b00001111) << 2) | (str[i + 2] >> 6)];
+        result += ALPHABET[(str[i] >> 2) & 0b00111111];
+        result += ALPHABET[((str[i] & 0b00000011) << 4) | ((str[i + 1] >> 4) & 0b00001111)];
+        result += ALPHABET[((str[i + 1] & 0b00001111) << 2) | ((str[i + 2] >> 6) & 0b00000011)];
         result += ALPHABET[str[i + 2] & 0b00111111];
     }
 
     if (str.size() - truncated == 1)
     {
-        result += ALPHABET[str[truncated] >> 2];
+        result += ALPHABET[(str[truncated] >> 2) & 0b00111111];
         result += ALPHABET[(str[truncated] & 0b00000011) << 4];
     }
 
     else if (str.size() - truncated == 2)
     {
-        result += ALPHABET[str[truncated] >> 2];
-        result += ALPHABET[((str[truncated] & 0b00000011) << 4) | (str[truncated + 1] >> 4)];
+        result += ALPHABET[(str[truncated] >> 2) & 0b00111111];
+        result += ALPHABET[((str[truncated] & 0b00000011) << 4) | ((str[truncated + 1] >> 4) & 0b00001111)];
         result += ALPHABET[(str[truncated + 1] & 0b00001111) << 2];
     }
 
