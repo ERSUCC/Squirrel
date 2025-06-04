@@ -663,8 +663,6 @@ Message* BSDTCPSocket::receive() const
 
     char buffer[BUFFER_SIZE];
 
-    buffer[BUFFER_SIZE - 1] = '\0';
-
     int n;
 
     do
@@ -675,6 +673,8 @@ Message* BSDTCPSocket::receive() const
         {
             return nullptr;
         }
+
+        buffer[n] = '\0';
 
         stream << buffer;
     } while (n > 0);

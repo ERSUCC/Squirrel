@@ -38,20 +38,20 @@ std::string Base64::decode(const std::string str)
 
     for (unsigned int i = 0; i < truncated; i += 4)
     {
-        result += (base64ToAscii(str[i]) << 2) | (base64ToAscii(str[i + 1]) >> 4);
-        result += (base64ToAscii(str[i + 1]) << 4) | (base64ToAscii(str[i + 2]) >> 2);
-        result += (base64ToAscii(str[i + 2]) << 6) | base64ToAscii(str[i + 3]);
+        result += (base64ToAscii(str[i]) << 2) | ((base64ToAscii(str[i + 1]) >> 4) & 0b00000011);
+        result += (base64ToAscii(str[i + 1]) << 4) | ((base64ToAscii(str[i + 2]) >> 2) & 0b00001111);
+        result += (base64ToAscii(str[i + 2]) << 6) | (base64ToAscii(str[i + 3]) & 0b00111111);
     }
 
     if (str.size() - truncated == 2)
     {
-        result += (base64ToAscii(str[truncated]) << 2) | (base64ToAscii(str[truncated + 1]) >> 4);
+        result += (base64ToAscii(str[truncated]) << 2) | ((base64ToAscii(str[truncated + 1]) >> 4) & 0b00000011);
     }
 
     else if (str.size() - truncated == 3)
     {
-        result += (base64ToAscii(str[truncated]) << 2) | (base64ToAscii(str[truncated + 1]) >> 4);
-        result += (base64ToAscii(str[truncated + 1]) << 4) | (base64ToAscii(str[truncated + 2]) >> 2);
+        result += (base64ToAscii(str[truncated]) << 2) | ((base64ToAscii(str[truncated + 1]) >> 4) & 0b00000011);
+        result += (base64ToAscii(str[truncated + 1]) << 4) | ((base64ToAscii(str[truncated + 2]) >> 2) & 0b00001111);
     }
 
     return result;
