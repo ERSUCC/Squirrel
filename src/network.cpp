@@ -1,15 +1,20 @@
 #include "../include/network.h"
 
-NetworkManager::NetworkManager(ErrorHandler* errorHandler, const std::string address) :
-    errorHandler(errorHandler), address(address)
+NetworkManager::NetworkManager(ErrorHandler* errorHandler, const std::string name, const std::string address) :
+    errorHandler(errorHandler), name(name), address(address)
 {
+    if (name.empty())
+    {
+        errorHandler->push(SquirrelException("Failed to get computer name."));
+    }
+
     if (address.empty())
     {
         errorHandler->push(SquirrelSocketException("Failed to find a valid network interface."));
     }
 }
 
-void NetworkManager::beginBroadcast(const std::function<void(const std::string)> handleResponse)
+void NetworkManager::beginBroadcast(const std::function<void(const std::string, const std::string)> handleResponse)
 {
     udpSocket = newUDPSocket();
 
@@ -39,6 +44,7 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string)>
                 const Message* broadcastMessage = new Message(new JSONObject(
                 {
                     { "type", new JSONString("broadcast") },
+                    { "name", new JSONString(name) },
                     { "ip", new JSONString(address) }
                 }));
 
@@ -60,9 +66,12 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string)>
         {
             if (message->data->getProperty("type")->asString().value_or("") == "available")
             {
-                if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
+                const std::optional<std::string> name = message->data->getProperty("name")->asString();
+                const std::optional<std::string> ip = message->data->getProperty("ip")->asString();
+
+                if (name && ip)
                 {
-                    handleResponse(ip.value());
+                    handleResponse(name.value(), ip.value());
                 }
             }
         }
@@ -98,6 +107,7 @@ void NetworkManager::beginListen(const std::function<void(const std::string, con
                     const Message* response = new Message(new JSONObject(
                     {
                         { "type", new JSONString("available") },
+                        { "name", new JSONString(name) },
                         { "ip", new JSONString(address) }
                     }));
 
@@ -132,14 +142,15 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
     file.close();
 
-    const std::string name = path.filename().string();
+    const std::string fileName = path.filename().string();
     const std::string data = Base64::encode(stream.str());
 
     const Message* message = new Message(new JSONObject(
     {
         { "type", new JSONString("transfer") },
-        { "ip", new JSONString(address) },
         { "name", new JSONString(name) },
+        { "ip", new JSONString(address) },
+        { "file", new JSONString(fileName) },
         { "data", new JSONString(data) }
     }));
 
@@ -236,17 +247,17 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
             return;
         }
 
-        const std::optional<std::string> name = message->data->getProperty("name")->asString();
+        const std::optional<std::string> fileName = message->data->getProperty("file")->asString();
         const std::optional<std::string> data = message->data->getProperty("data")->asString();
 
-        if (!name || !data)
+        if (!fileName || !data)
         {
             errorHandler->push(SquirrelSocketException("Received incorrect message format."));
 
             return;
         }
 
-        handleReceive(name.value(), Base64::decode(data.value()));
+        handleReceive(fileName.value(), Base64::decode(data.value()));
 
         if (!tcpSocket->destroy())
         {
@@ -449,7 +460,7 @@ bool WinTCPSocket::destroy()
 }
 
 WinNetworkManager::WinNetworkManager(ErrorHandler* errorHandler) :
-    NetworkManager(errorHandler, getAddress())
+    NetworkManager(errorHandler, getName(), getAddress())
 {
     WSADATA wsaData;
 
@@ -472,6 +483,20 @@ UDPSocket* WinNetworkManager::newUDPSocket() const
 TCPSocket* WinNetworkManager::newTCPSocket() const
 {
     return new WinTCPSocket();
+}
+
+std::string WinNetworkManager::getName() const
+{
+    char buffer[UNLEN + 1];
+
+    unsigned long size = UNLEN + 1;
+
+    if (!GetUserName(buffer, &size))
+    {
+        return "";
+    }
+
+    return buffer;
 }
 
 std::string WinNetworkManager::getAddress() const

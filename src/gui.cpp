@@ -1,168 +1,134 @@
-#include "gui.h"
+#include "../include/gui.h"
 
-GUI::GUI(ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager) :
-    errorHandler(errorHandler), networkManager(networkManager), fileManager(fileManager)
+GUIObject::GUIObject(SDL_Renderer* renderer) :
+    renderer(renderer) {}
+
+void GUIObject::click(const unsigned int x, const unsigned int y) const {}
+
+Label::Label(SDL_Renderer* renderer) :
+    GUIObject(renderer) {}
+
+void Label::render() const
 {
-    SDL_Init(SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_RESIZABLE, &window, &renderer);
-    SDL_SetWindowTitle(window, "Squirrel");
-    SDL_AddEventWatch(eventWatch, this);
-
-    TTF_Init();
-
-    font = TTF_OpenFont("resources/fonts/OpenSans-Variable.ttf", 12);
+    SDL_SetRenderDrawColor(renderer, textColor.r, textColor.g, textColor.b, textColor.a);
+    SDL_RenderCopy(renderer, textTexture, nullptr, &rect);
 }
 
-GUI::~GUI()
+void Label::setLocation(const unsigned int x, const unsigned int y)
 {
-    TTF_CloseFont(font);
-    TTF_Quit();
-
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+    rect.x = x;
+    rect.y = y;
 }
 
-void GUI::setupEmpty()
+void Label::setSize(const unsigned int width, const unsigned int height)
 {
-    networkManager->beginListen([=](const std::string name, const std::string& data)
+    rect.w = width;
+    rect.h = height;
+}
+
+void Label::setFont(TTF_Font* font)
+{
+    this->font = font;
+
+    renderTexture();
+}
+
+void Label::setText(const std::string text)
+{
+    this->text = text;
+
+    renderTexture();
+}
+
+void Label::setTextColor(const SDL_Color color)
+{
+    textColor = color;
+
+    renderTexture();
+}
+
+void Label::renderTexture()
+{
+    if (textTexture)
     {
-        mainThreadQueue->push([=]()
-        {
-            const std::filesystem::path path = fileManager->getSavePath(name);
+        SDL_DestroyTexture(textTexture);
 
-            std::ofstream file(path);
+        textTexture = nullptr;
+    }
 
-            if (!file.is_open())
-            {
-                errorHandler->push(SquirrelFileException("Failed to save file."));
-
-                return;
-            }
-
-            file << data;
-
-            file.close();
-        });
-    });
-}
-
-void GUI::setupSend(const std::string path)
-{
-    this->path = path;
-
-    networkManager->beginBroadcast(std::bind(&GUI::handleResponse, this, std::placeholders::_1));
-}
-
-void GUI::run()
-{
-    SDL_Event event;
-
-    bool running = true;
-
-    render();
-
-    while (running)
+    if (text.empty())
     {
-        while (std::optional<SquirrelException> error = errorHandler->pop())
-        {
-            std::cout << error.value().what() << "\n";
-        }
+        return;
+    }
 
-        while (SDL_PollEvent(&event))
-        {
-            switch (event.type)
-            {
-                case SDL_QUIT:
-                    running = false;
+    SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), textColor);
 
-                    break;
+    textTexture = SDL_CreateTextureFromSurface(renderer, surface);
 
-                case SDL_MOUSEBUTTONDOWN:
-                    // check actual positions later, this is simplified for testing
-                    renderLock.lock();
+    rect.w = surface->w;
+    rect.h = surface->h;
 
-                    if (!availableTargets.empty())
-                    {
-                        networkManager->beginTransfer(path, availableTargets[0]);
-                    }
+    SDL_FreeSurface(surface);
+}
 
-                    renderLock.unlock();
+Button::Button(SDL_Renderer* renderer) :
+    GUIObject(renderer), label(new Label(renderer)) {}
 
-                    break;
-            }
-        }
+void Button::render() const
+{
+    SDL_SetRenderDrawColor(renderer, backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
+    SDL_RenderFillRect(renderer, &rect);
 
-        while (std::optional<std::function<void()>> operation = mainThreadQueue->pop())
-        {
-            operation.value()();
-        }
+    label->render();
+}
 
-        if ((clock.now() - lastFrame).count() >= 1e9 / 60)
-        {
-            render();
-        }
+void Button::setLocation(const unsigned int x, const unsigned int y)
+{
+    rect.x = x;
+    rect.y = y;
+
+    label->setLocation(x + rect.w / 2 - label->rect.w / 2, y + rect.h / 2 - label->rect.h / 2);
+}
+
+void Button::setSize(const unsigned int width, const unsigned int height)
+{
+    rect.w = width;
+    rect.h = height;
+
+    label->setLocation(rect.x + width / 2 - label->rect.w / 2, rect.y + height / 2 - label->rect.h / 2);
+}
+
+void Button::click(const unsigned int x, const unsigned int y) const
+{
+    if (x >= rect.x && y >= rect.y && x < rect.x + rect.w && y < rect.y + rect.h)
+    {
+        action();
     }
 }
 
-void GUI::render()
+void Button::setFont(TTF_Font* font)
 {
-    renderLock.lock();
-
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_RenderClear(renderer);
-
-    SDL_SetRenderDrawColor(renderer, 255, 128, 128, 255);
-
-    const int size = 50;
-    const int gap = 25;
-
-    const int startX = width / 2 - (availableTargets.size() * size + (availableTargets.size() - 1) * gap) / 2;
-
-    for (int i = 0; i < availableTargets.size(); i++)
-    {
-        SDL_Rect rect { startX + i * (size + gap), height / 2 - size / 2, size, size };
-
-        SDL_RenderFillRect(renderer, &rect);
-    }
-
-    SDL_RenderPresent(renderer);
-
-    lastFrame = clock.now();
-
-    renderLock.unlock();
+    label->setFont(font);
+    label->setLocation(rect.x + rect.w / 2 - label->rect.w / 2, rect.y + rect.h / 2 - label->rect.h / 2);
 }
 
-void GUI::handleResponse(const std::string ip)
+void Button::setText(const std::string text)
 {
-    renderLock.lock();
-
-    if (std::find(availableTargets.begin(), availableTargets.end(), ip) == availableTargets.end())
-    {
-        availableTargets.push_back(ip);
-    }
-
-    renderLock.unlock();
+    label->setText(text);
+    label->setLocation(rect.x + rect.w / 2 - label->rect.w / 2, rect.y + rect.h / 2 - label->rect.h / 2);
 }
 
-int eventWatch(void* userdata, SDL_Event* event)
+void Button::setBackgroundColor(const SDL_Color color)
 {
-    switch (event->type)
-    {
-        case SDL_WINDOWEVENT:
-            switch (event->window.event)
-            {
-                case SDL_WINDOWEVENT_RESIZED:
-                case SDL_WINDOWEVENT_SIZE_CHANGED:
-                {
-                    ((GUI*)userdata)->render();
+    backgroundColor = color;
+}
 
-                    break;
-                }
-            }
+void Button::setTextColor(const SDL_Color color)
+{
+    label->setTextColor(color);
+}
 
-            break;
-    }
-
-    return 1;
+void Button::setAction(const std::function<void()> action)
+{
+    this->action = action;
 }

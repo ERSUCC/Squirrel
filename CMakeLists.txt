@@ -12,7 +12,8 @@ set(SQUIRREL_SOURCES include/safe_queue.hpp
                      src/gui.cpp
                      src/json.cpp
                      src/main.cpp
-                     src/network.cpp)
+                     src/network.cpp
+                     src/renderer.cpp)
 
 if(APPLE)
     set(SQUIRREL_SOURCES ${SQUIRREL_SOURCES} src/files_mac.mm)

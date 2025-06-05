@@ -1,61 +1,82 @@
 #pragma once
 
-#include <chrono>
-#include <filesystem>
-#include <fstream>
 #include <functional>
-#include <iostream>
-#include <mutex>
-#include <optional>
-#include <sstream>
 #include <string>
-#include <vector>
 
 #include <SDL.h>
 #include <SDL_ttf.h>
 
-#include "errors.h"
-#include "network.h"
-#include "files.h"
-#include "safe_queue.hpp"
-
-struct GUI
+struct GUIObject
 {
-    GUI(ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager);
-    ~GUI();
+    GUIObject(SDL_Renderer* renderer);
 
-    void setupEmpty();
-    void setupSend(const std::string path);
+    virtual void render() const = 0;
 
-    void run();
-    void render();
+    virtual void setLocation(const unsigned int x, const unsigned int y) = 0;
+    virtual void setSize(const unsigned int width, const unsigned int height) = 0;
 
-private:
-    void handleResponse(const std::string ip);
+    virtual void click(const unsigned int x, const unsigned int y) const;
 
-    std::mutex renderLock;
+    SDL_Rect rect = { 0, 0, 0, 0 };
 
-    SDL_Window* window;
+protected:
     SDL_Renderer* renderer;
-
-    int width = 500;
-    int height = 500;
-
-    TTF_Font* font;
-
-    std::chrono::high_resolution_clock clock;
-    std::chrono::time_point<std::chrono::high_resolution_clock> lastFrame;
-
-    ErrorHandler* errorHandler;
-    NetworkManager* networkManager;
-    FileManager* fileManager;
-
-    ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
-
-    std::vector<std::string> availableTargets;
-
-    std::string path;
 
 };
 
-int eventWatch(void* userdata, SDL_Event* event);
+struct Label : public GUIObject
+{
+    Label(SDL_Renderer* renderer);
+
+    void render() const override;
+
+    void setLocation(const unsigned int x, const unsigned int y) override;
+    void setSize(const unsigned int width, const unsigned int height) override;
+
+    void setFont(TTF_Font* font);
+
+    void setText(const std::string text);
+
+    void setTextColor(const SDL_Color color);
+
+private:
+    void renderTexture();
+
+    std::string text;
+
+    SDL_Color textColor = { 0, 0, 0, 0 };
+
+    TTF_Font* font = nullptr;
+
+    SDL_Texture* textTexture = nullptr;
+
+};
+
+struct Button : public GUIObject
+{
+    Button(SDL_Renderer* renderer);
+
+    void render() const override;
+
+    void setLocation(const unsigned int x, const unsigned int y) override;
+    void setSize(const unsigned int width, const unsigned int height) override;
+
+    void click(const unsigned int x, const unsigned int y) const override;
+
+    void setFont(TTF_Font* font);
+
+    void setText(const std::string text);
+
+    void setBackgroundColor(const SDL_Color color);
+    void setTextColor(const SDL_Color color);
+
+    void setAction(const std::function<void()> action);
+
+private:
+    Label* label;
+
+    SDL_Color backgroundColor = { 0, 0, 0, 0 };
+
+    std::function<void()> action;
+
+};

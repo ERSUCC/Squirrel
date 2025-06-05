@@ -1,22 +1,22 @@
-#include "../include/gui.h"
 #include "../include/network.h"
+#include "../include/renderer.h"
 #include "../include/files.h"
 
 void init(const int argc, char** argv, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager)
 {
-    GUI* gui = new GUI(errorHandler, networkManager, fileManager);
+    Renderer* renderer = new Renderer(errorHandler, networkManager, fileManager);
 
     if (argc == 0)
     {
-        gui->setupEmpty();
+        renderer->setupEmpty();
     }
 
     else
     {
-        gui->setupSend(argv[0]);
+        renderer->setupSend(argv[0]);
     }
 
-    gui->run();
+    renderer->run();
 }
 
 #ifdef _WIN32
