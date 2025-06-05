@@ -134,6 +134,7 @@ protected:
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <stdlib.h>
 
 struct BSDUDPSocket : public UDPSocket
 {
@@ -176,6 +177,7 @@ protected:
     UDPSocket* newUDPSocket() const override;
     TCPSocket* newTCPSocket() const override;
 
+    std::string getName() const override;
     std::string getAddress() const override;
 
 };

@@ -720,7 +720,7 @@ bool BSDTCPSocket::destroy()
 }
 
 BSDNetworkManager::BSDNetworkManager(ErrorHandler* errorHandler) :
-    NetworkManager(errorHandler, getAddress()) {}
+    NetworkManager(errorHandler, getName(), getAddress()) {}
 
 UDPSocket* BSDNetworkManager::newUDPSocket() const
 {
@@ -730,6 +730,18 @@ UDPSocket* BSDNetworkManager::newUDPSocket() const
 TCPSocket* BSDNetworkManager::newTCPSocket() const
 {
     return new BSDTCPSocket();
+}
+
+std::string BSDNetworkManager::getName() const
+{
+    const char* name = std::getenv("USER");
+
+    if (name)
+    {
+        return name;
+    }
+
+    return "";
 }
 
 std::string BSDNetworkManager::getAddress() const
