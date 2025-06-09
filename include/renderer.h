@@ -52,6 +52,8 @@ private:
     int width = 500;
     int height = 500;
 
+    float scale;
+
     TTF_Font* font;
 
     std::chrono::high_resolution_clock clock;
