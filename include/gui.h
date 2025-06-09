@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 #include <SDL.h>
 #include <SDL_ttf.h>
@@ -12,10 +13,13 @@ struct GUIObject
 
     virtual void render() const = 0;
 
-    virtual void setLocation(const unsigned int x, const unsigned int y) = 0;
-    virtual void setSize(const unsigned int width, const unsigned int height) = 0;
+    void setLocation(const int x, const int y);
+    void setSize(const int width, const int height);
 
-    virtual void click(const unsigned int x, const unsigned int y) const;
+    virtual void layout();
+
+    virtual void hover(const int x, const int y);
+    virtual void click(const int x, const int y);
 
     SDL_Rect rect = { 0, 0, 0, 0 };
 
@@ -24,14 +28,61 @@ protected:
 
 };
 
+struct Layout : public GUIObject
+{
+    Layout(SDL_Renderer* renderer);
+
+    void render() const override;
+
+    void addObject(GUIObject* object);
+    void removeObject(GUIObject* object);
+
+protected:
+    std::vector<GUIObject*> objects;
+
+};
+
+enum Direction
+{
+    Horizontal,
+    Vertical
+};
+
+enum Anchor
+{
+    Leading,
+    Center,
+    Trailing
+};
+
+struct StackLayout : public Layout
+{
+    StackLayout(SDL_Renderer* renderer);
+
+    void layout() override;
+
+    void setDirection(const Direction direction);
+
+    void setHorizontalAnchor(const Anchor anchor);
+    void setVerticalAnchor(const Anchor anchor);
+
+    void setSpacing(const int spacing);
+
+private:
+    Direction direction;
+
+    Anchor horizontalAnchor;
+    Anchor verticalAnchor;
+
+    int spacing;
+
+};
+
 struct Label : public GUIObject
 {
     Label(SDL_Renderer* renderer);
 
     void render() const override;
-
-    void setLocation(const unsigned int x, const unsigned int y) override;
-    void setSize(const unsigned int width, const unsigned int height) override;
 
     void setFont(TTF_Font* font);
 
@@ -58,10 +109,10 @@ struct Button : public GUIObject
 
     void render() const override;
 
-    void setLocation(const unsigned int x, const unsigned int y) override;
-    void setSize(const unsigned int width, const unsigned int height) override;
+    void layout() override;
 
-    void click(const unsigned int x, const unsigned int y) const override;
+    void hover(const int x, const int y) override;
+    void click(const int x, const int y) override;
 
     void setFont(TTF_Font* font);
 
@@ -78,5 +129,7 @@ private:
     SDL_Color backgroundColor = { 0, 0, 0, 0 };
 
     std::function<void()> action;
+
+    bool isHover = false;
 
 };

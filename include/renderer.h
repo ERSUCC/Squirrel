@@ -39,6 +39,8 @@ struct Renderer
     void run();
     void render();
 
+    void resized(const unsigned int width, const unsigned int height);
+
 private:
     void handleResponse(const std::string name, const std::string ip);
 
@@ -60,6 +62,8 @@ private:
     FileManager* fileManager;
 
     ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
+
+    Layout* root;
 
     std::vector<TargetButton*> targets;
 

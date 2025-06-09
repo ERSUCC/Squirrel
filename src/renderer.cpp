@@ -14,6 +14,17 @@ Renderer::Renderer(ErrorHandler* errorHandler, NetworkManager* networkManager, F
     TTF_Init();
 
     font = TTF_OpenFont("resources/fonts/OpenSans-Variable.ttf", 12);
+
+    StackLayout* stack = new StackLayout(renderer);
+
+    stack->setDirection(Direction::Vertical);
+    stack->setHorizontalAnchor(Anchor::Center);
+    stack->setVerticalAnchor(Anchor::Center);
+    stack->setSpacing(10);
+
+    root = stack;
+
+    resized(width, height);
 }
 
 Renderer::~Renderer()
@@ -81,10 +92,22 @@ void Renderer::run()
 
                     break;
 
+                case SDL_MOUSEMOTION:
+                    renderLock.lock();
+
+                    for (TargetButton* target : targets)
+                    {
+                        target->hover(event.button.x, event.button.y);
+                    }
+
+                    renderLock.unlock();
+
+                    break;
+
                 case SDL_MOUSEBUTTONDOWN:
                     renderLock.lock();
 
-                    for (const TargetButton* target : targets)
+                    for (TargetButton* target : targets)
                     {
                         target->click(event.button.x, event.button.y);
                     }
@@ -114,14 +137,24 @@ void Renderer::render()
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
-    for (const TargetButton* target : targets)
-    {
-        target->render();
-    }
+    root->render();
 
     SDL_RenderPresent(renderer);
 
     lastFrame = clock.now();
+
+    renderLock.unlock();
+}
+
+void Renderer::resized(const unsigned int width, const unsigned int height)
+{
+    this->width = width;
+    this->height = height;
+
+    renderLock.lock();
+
+    root->setSize(width, height);
+    root->layout();
 
     renderLock.unlock();
 }
@@ -137,7 +170,6 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
     {
         TargetButton* target = new TargetButton(renderer, name, ip);
 
-        target->setLocation(25, 25);
         target->setSize(100, 30);
         target->setFont(font);
         target->setText(name);
@@ -149,6 +181,9 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
         });
 
         targets.push_back(target);
+
+        root->addObject(target);
+        root->layout();
     }
 
     renderLock.unlock();
@@ -164,7 +199,10 @@ int eventWatch(void* userdata, SDL_Event* event)
                 case SDL_WINDOWEVENT_RESIZED:
                 case SDL_WINDOWEVENT_SIZE_CHANGED:
                 {
-                    ((Renderer*)userdata)->render();
+                    Renderer* renderer = (Renderer*)userdata;
+
+                    renderer->resized(event->window.data1, event->window.data2);
+                    renderer->render();
 
                     break;
                 }
