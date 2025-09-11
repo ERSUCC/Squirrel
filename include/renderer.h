@@ -20,9 +20,11 @@
 #include "files.h"
 #include "safe_queue.hpp"
 
-struct TargetButton : public Button
+struct Target
 {
-    TargetButton(SDL_Renderer* renderer, const std::string name, const std::string ip);
+    Target(const GUIObject* object, const std::string name, const std::string ip);
+
+    const GUIObject* object;
 
     const std::string name;
     const std::string ip;
@@ -33,8 +35,9 @@ struct Renderer
     Renderer(ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager);
     ~Renderer();
 
-    void setupEmpty();
-    void setupSend(const std::string path);
+    void setPath(const std::string path);
+
+    void setupSend();
 
     void run();
     void render();
@@ -67,7 +70,7 @@ private:
 
     Layout* root;
 
-    std::vector<TargetButton*> targets;
+    std::vector<Target*> targets;
 
     std::string path;
 

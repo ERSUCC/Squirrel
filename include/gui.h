@@ -50,11 +50,19 @@ struct Layout : public GUIObject
 
     void render() const override;
 
+    void hover(const int x, const int y) override;
+    void click(const int x, const int y) override;
+
+    void setBackgroundColor(const SDL_Color color);
+
     void addObject(GUIObject* object, const Sizing horizontalSizing, const Sizing verticalSizing);
     void removeObject(GUIObject* object);
 
 protected:
     std::vector<LayoutObject*> objects;
+
+private:
+    SDL_Color backgroundColor = { 0, 0, 0, 0 };
 
 };
 
@@ -86,13 +94,13 @@ struct StackLayout : public Layout
     void setSpacing(const int spacing);
 
 private:
-    Direction direction;
+    Direction direction = Direction::Horizontal;
 
-    Anchor horizontalAnchor;
-    Anchor verticalAnchor;
+    Anchor horizontalAnchor = Anchor::Center;
+    Anchor verticalAnchor = Anchor::Center;
 
-    int border;
-    int spacing;
+    int border = 0;
+    int spacing = 0;
 
 };
 

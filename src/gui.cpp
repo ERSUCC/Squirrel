@@ -28,10 +28,37 @@ Layout::Layout(SDL_Renderer* renderer) :
 
 void Layout::render() const
 {
+    if (backgroundColor.a != 0)
+    {
+        SDL_SetRenderDrawColor(renderer, backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
+        SDL_RenderFillRect(renderer, &rect);
+    }
+
     for (const LayoutObject* object : objects)
     {
         object->object->render();
     }
+}
+
+void Layout::hover(const int x, const int y)
+{
+    for (LayoutObject* object : objects)
+    {
+        object->object->hover(x, y);
+    }
+}
+
+void Layout::click(const int x, const int y)
+{
+    for (LayoutObject* object : objects)
+    {
+        object->object->click(x, y);
+    }
+}
+
+void Layout::setBackgroundColor(const SDL_Color color)
+{
+    backgroundColor = color;
 }
 
 void Layout::addObject(GUIObject* object, const Sizing horizontalSizing, const Sizing verticalSizing)

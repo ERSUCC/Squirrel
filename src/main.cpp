@@ -1,22 +1,76 @@
 #include "../include/network.h"
 #include "../include/renderer.h"
+#include "../include/safe_queue.hpp"
 #include "../include/files.h"
 
-void init(const int argc, char** argv, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager)
-{
-    Renderer* renderer = new Renderer(errorHandler, networkManager, fileManager);
+#include <functional>
+#include <iostream>
+#include <optional>
 
+int init(const int argc, char** argv, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager)
+{
     if (argc == 0)
     {
-        renderer->setupEmpty();
+        std::cout << "No arguments provided.\n";
+
+        return 1;
+    }
+
+    if (strncmp(argv[0], "--send", 6) == 0)
+    {
+        Renderer* renderer = new Renderer(errorHandler, networkManager, fileManager);
+
+        if (argc > 1)
+        {
+            renderer->setPath(argv[1]);
+        }
+
+        renderer->setupSend();
+        renderer->run();
+    }
+
+    else if (strncmp(argv[0], "--receive", 9) == 0)
+    {
+        ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
+
+        networkManager->beginListen([=](const std::string name, const std::string& data)
+        {
+            mainThreadQueue->push([=]()
+            {
+                const std::filesystem::path path = fileManager->getSavePath(name);
+
+                std::ofstream file(path);
+
+                if (!file.is_open())
+                {
+                    errorHandler->push(SquirrelFileException("Failed to save file."));
+
+                    return;
+                }
+
+                file << data;
+
+                file.close();
+            });
+        });
+
+        while (true)
+        {
+            while (std::optional<std::function<void()>> operation = mainThreadQueue->pop())
+            {
+                operation.value()();
+            }
+        }
     }
 
     else
     {
-        renderer->setupSend(argv[0]);
+        std::cout << "Unknown argument \"" << argv[0] << "\".\n";
+
+        return 1;
     }
 
-    renderer->run();
+    return 0;
 }
 
 #ifdef _WIN32
@@ -48,15 +102,10 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
             argvChar[i][length] = '\0';
         }
 
-        init(argc, argvChar, errorHandler, new WinNetworkManager(errorHandler), new WinFileManager());
+        return init(argc, argvChar, errorHandler, new WinNetworkManager(errorHandler), new WinFileManager());
     }
 
-    else
-    {
-        init(0, nullptr, errorHandler, new WinNetworkManager(errorHandler), new WinFileManager());
-    }
-
-    return 0;
+    return init(0, nullptr, errorHandler, new WinNetworkManager(errorHandler), new WinFileManager());
 }
 
 #elif __APPLE__
@@ -65,9 +114,7 @@ int main(int argc, char** argv)
 {
     ErrorHandler* errorHandler = new ErrorHandler();
 
-    init(argc - 1, argv + 1, errorHandler, new BSDNetworkManager(errorHandler), new MacFileManager());
-
-    return 0;
+    return init(argc - 1, argv + 1, errorHandler, new BSDNetworkManager(errorHandler), new MacFileManager());
 }
 
 #else
@@ -76,9 +123,7 @@ int main(int argc, char** argv)
 {
     ErrorHandler* errorHandler = new ErrorHandler();
 
-    init(argc - 1, argv + 1, errorHandler, new BSDNetworkManager(errorHandler), new LinuxFileManager());
-
-    return 0;
+    return init(argc - 1, argv + 1, errorHandler, new BSDNetworkManager(errorHandler), new LinuxFileManager());
 }
 
 #endif

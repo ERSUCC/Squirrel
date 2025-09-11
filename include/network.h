@@ -4,7 +4,6 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <iostream>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -27,6 +26,7 @@ struct UDPSocket
     virtual Message* receive() const = 0;
 
     virtual bool destroy() = 0;
+    virtual bool isAlive() = 0;
 };
 
 struct TCPSocket
@@ -90,6 +90,7 @@ struct WinUDPSocket : public UDPSocket
     Message* receive() const override;
 
     bool destroy() override;
+    bool isAlive() override;
 
 private:
     SOCKET socketHandle = INVALID_SOCKET;
@@ -145,6 +146,7 @@ struct BSDUDPSocket : public UDPSocket
     Message* receive() const override;
 
     bool destroy() override;
+    bool isAlive() override;
 
 private:
     int socketHandle = -1;

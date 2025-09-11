@@ -1,7 +1,7 @@
 #include "renderer.h"
 
-TargetButton::TargetButton(SDL_Renderer* renderer, const std::string name, const std::string ip) :
-    Button(renderer), name(name), ip(ip) {}
+Target::Target(const GUIObject* object, const std::string name, const std::string ip) :
+    object(object), name(name), ip(ip) {}
 
 Renderer::Renderer(ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager) :
     errorHandler(errorHandler), networkManager(networkManager), fileManager(fileManager)
@@ -44,34 +44,13 @@ Renderer::~Renderer()
     SDL_Quit();
 }
 
-void Renderer::setupEmpty()
-{
-    networkManager->beginListen([=](const std::string name, const std::string& data)
-    {
-        mainThreadQueue->push([=]()
-        {
-            const std::filesystem::path path = fileManager->getSavePath(name);
-
-            std::ofstream file(path);
-
-            if (!file.is_open())
-            {
-                errorHandler->push(SquirrelFileException("Failed to save file."));
-
-                return;
-            }
-
-            file << data;
-
-            file.close();
-        });
-    });
-}
-
-void Renderer::setupSend(const std::string path)
+void Renderer::setPath(const std::string path)
 {
     this->path = path;
+}
 
+void Renderer::setupSend()
+{
     networkManager->beginBroadcast(std::bind(&Renderer::handleResponse, this, std::placeholders::_1, std::placeholders::_2));
 }
 
@@ -102,10 +81,7 @@ void Renderer::run()
                 case SDL_MOUSEMOTION:
                     renderLock.lock();
 
-                    for (TargetButton* target : targets)
-                    {
-                        target->hover(event.button.x * scale, event.button.y * scale);
-                    }
+                    root->hover(event.button.x * scale, event.button.y * scale);
 
                     renderLock.unlock();
 
@@ -114,10 +90,7 @@ void Renderer::run()
                 case SDL_MOUSEBUTTONDOWN:
                     renderLock.lock();
 
-                    for (TargetButton* target : targets)
-                    {
-                        target->click(event.button.x * scale, event.button.y * scale);
-                    }
+                    root->click(event.button.x * scale, event.button.y * scale);
 
                     renderLock.unlock();
 
@@ -170,27 +143,54 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
 {
     renderLock.lock();
 
-    if (std::find_if(targets.begin(), targets.end(), [=](const TargetButton* target)
+    if (std::find_if(targets.begin(), targets.end(), [=](const Target* target)
     {
         return target->name == name && target->ip == ip;
     }) == targets.end())
     {
-        TargetButton* target = new TargetButton(renderer, name, ip);
+        StackLayout* layout = new StackLayout(renderer);
 
-        target->setSize(100 * scale, 64 * scale);
-        target->setFont(font);
-        target->setText(name);
-        target->setBackgroundColor({ 200, 200, 200, 255 });
-        target->setTextColor({ 0, 0, 0, 255 });
-        target->setAction([=]()
+        layout->setDirection(Direction::Horizontal);
+        layout->setVerticalAnchor(Anchor::Center);
+        layout->setSize(0, 64 * scale);
+        layout->setBorder(8 * scale);
+        layout->setSpacing(8 * scale);
+        layout->setBackgroundColor({ 220, 220, 220, 255 });
+
+        Label* label = new Label(renderer);
+
+        label->setFont(font);
+        label->setText(name);
+        label->setTextColor({ 50, 50, 50, 255 });
+
+        layout->addObject(label, Sizing::Fixed, Sizing::Fixed);
+        layout->addObject(new StackLayout(renderer), Sizing::Stretch, Sizing::Stretch);
+
+        Button* sendButton = new Button(renderer);
+
+        sendButton->setSize(48 * scale, 48 * scale);
+        sendButton->setFont(font);
+        sendButton->setText("Send");
+        sendButton->setBackgroundColor({ 200, 200, 200, 255 });
+        sendButton->setTextColor({ 50, 50, 50, 255 });
+        sendButton->setAction([=]()
         {
+            if (path.empty())
+            {
+                // choose file
+
+                return;
+            }
+
             networkManager->beginTransfer(path, ip);
         });
 
-        targets.push_back(target);
+        layout->addObject(sendButton, Sizing::Fixed, Sizing::Fixed);
 
-        root->addObject(target, Sizing::Stretch, Sizing::Fixed);
+        root->addObject(layout, Sizing::Stretch, Sizing::Fixed);
         root->layout();
+
+        targets.push_back(new Target(layout, name, ip));
     }
 
     renderLock.unlock();

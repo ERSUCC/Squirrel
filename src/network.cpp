@@ -37,7 +37,7 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string, 
         std::chrono::high_resolution_clock clock;
         std::chrono::time_point<std::chrono::high_resolution_clock> last;
 
-        while (udpSocket)
+        while (udpSocket->isAlive())
         {
             if ((clock.now() - last).count() >= 1e9)
             {
@@ -57,7 +57,7 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string, 
 
                 last = clock.now();
             }
-        };
+        }
     });
 
     responseThread = std::thread([=]()
@@ -69,7 +69,7 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string, 
                 const std::optional<std::string> name = message->data->getProperty("name")->asString();
                 const std::optional<std::string> ip = message->data->getProperty("ip")->asString();
 
-                if (name && ip)
+                if (name && ip && ip != address)
                 {
                     handleResponse(name.value(), ip.value());
                 }
@@ -102,7 +102,9 @@ void NetworkManager::beginListen(const std::function<void(const std::string, con
         {
             if (message->data->getProperty("type")->asString().value_or("") == "broadcast")
             {
-                if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
+                const std::optional<std::string> ip = message->data->getProperty("ip")->asString();
+
+                if (ip && ip != address)
                 {
                     const Message* response = new Message(new JSONObject(
                     {
@@ -154,11 +156,10 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
         { "data", new JSONString(data) }
     }));
 
-    udpSocket->destroy();
-
-    udpSocket = nullptr;
-
-    broadcastThread.join();
+    if (transferThread.joinable())
+    {
+        transferThread.join();
+    }
 
     tcpSocket = newTCPSocket();
 
@@ -349,6 +350,11 @@ bool WinUDPSocket::destroy()
     return true;
 }
 
+bool WinUDPSocket::isAlive()
+{
+    return socketHandle != INVALID_SOCKET;
+}
+
 bool WinTCPSocket::create()
 {
     socketHandle = socket(PF_INET, SOCK_STREAM, 0);
@@ -466,7 +472,7 @@ WinNetworkManager::WinNetworkManager(ErrorHandler* errorHandler) :
 
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
-        std::cout << "Failed to initialize WinSock.\n";
+        errorHandler->push(SquirrelSocketException("Failed to initialize WinSock."));
     }
 }
 
@@ -617,6 +623,11 @@ bool BSDUDPSocket::destroy()
     socketHandle = -1;
 
     return true;
+}
+
+bool BSDUDPSocket::isAlive()
+{
+    return socketHandle != -1;
 }
 
 bool BSDTCPSocket::create()
