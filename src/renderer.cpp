@@ -25,9 +25,9 @@ Renderer::Renderer(ErrorHandler* errorHandler, NetworkManager* networkManager, F
     StackLayout* stack = new StackLayout(renderer);
 
     stack->setDirection(Direction::Vertical);
-    stack->setHorizontalAnchor(Anchor::Center);
-    stack->setVerticalAnchor(Anchor::Center);
-    stack->setSpacing(10 * scale);
+    stack->setVerticalAnchor(Anchor::Leading);
+    stack->setBorder(8 * scale);
+    stack->setSpacing(8 * scale);
 
     root = stack;
 
@@ -177,7 +177,7 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
     {
         TargetButton* target = new TargetButton(renderer, name, ip);
 
-        target->setSize(100 * scale, 30 * scale);
+        target->setSize(100 * scale, 64 * scale);
         target->setFont(font);
         target->setText(name);
         target->setBackgroundColor({ 200, 200, 200, 255 });
@@ -189,7 +189,7 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
 
         targets.push_back(target);
 
-        root->addObject(target);
+        root->addObject(target, Sizing::Stretch, Sizing::Fixed);
         root->layout();
     }
 

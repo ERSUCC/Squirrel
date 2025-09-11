@@ -20,35 +20,38 @@ void GUIObject::layout() {}
 void GUIObject::hover(const int x, const int y) {}
 void GUIObject::click(const int x, const int y) {}
 
+LayoutObject::LayoutObject(GUIObject* object, const Sizing horizontalSizing, const Sizing verticalSizing) :
+    object(object), horizontalSizing(horizontalSizing), verticalSizing(verticalSizing) {}
+
 Layout::Layout(SDL_Renderer* renderer) :
     GUIObject(renderer) {}
 
 void Layout::render() const
 {
-    for (const GUIObject* object : objects)
+    for (const LayoutObject* object : objects)
     {
-        object->render();
+        object->object->render();
     }
 }
 
-void Layout::addObject(GUIObject* object)
+void Layout::addObject(GUIObject* object, const Sizing horizontalSizing, const Sizing verticalSizing)
 {
-    for (const GUIObject* existing : objects)
+    for (const LayoutObject* existing : objects)
     {
-        if (existing == object)
+        if (existing->object == object)
         {
             return;
         }
     }
 
-    objects.push_back(object);
+    objects.push_back(new LayoutObject(object, horizontalSizing, verticalSizing));
 }
 
 void Layout::removeObject(GUIObject* object)
 {
     for (unsigned int i = 0; i < objects.size(); i++)
     {
-        if (objects[i] == object)
+        if (objects[i]->object == object)
         {
             objects.erase(objects.begin() + i);
 
@@ -71,56 +74,97 @@ void StackLayout::layout()
     {
         case Direction::Horizontal:
         {
-            int width = objects[0]->rect.w;
+            int fixedWidth = 0;
+            int numFixed = 0;
 
-            for (unsigned int i = 1; i < objects.size(); i++)
+            for (const LayoutObject* object : objects)
             {
-                width += spacing + objects[i]->rect.w;
+                if (object->horizontalSizing == Sizing::Fixed)
+                {
+                    fixedWidth += object->object->rect.w;
+
+                    numFixed++;
+                }
             }
 
             int x;
+            int stretchWidth;
 
-            switch (horizontalAnchor)
+            if (numFixed == objects.size())
             {
-                case Anchor::Leading:
-                    x = rect.x;
-
-                    break;
-
-                case Anchor::Center:
-                    x = rect.x + rect.w / 2 - width / 2;
-
-                    break;
-
-                case Anchor::Trailing:
-                    x = rect.x + rect.w - width;
-
-                    break;
-            }
-
-            for (GUIObject* object : objects)
-            {
-                switch (verticalAnchor)
+                switch (horizontalAnchor)
                 {
                     case Anchor::Leading:
-                        object->setLocation(x, rect.y);
+                        x = rect.x + border;
 
                         break;
 
                     case Anchor::Center:
-                        object->setLocation(x, rect.y + rect.h / 2 - object->rect.h / 2);
+                        x = rect.x + rect.w / 2 - (fixedWidth + spacing * (numFixed - 1)) / 2;
 
                         break;
 
                     case Anchor::Trailing:
-                        object->setLocation(x, rect.y + rect.h - object->rect.h);
+                        x = rect.x + rect.w - (fixedWidth + spacing * (numFixed - 1)) - border;
 
                         break;
                 }
 
-                object->layout();
+                stretchWidth = 0;
+            }
 
-                x += object->rect.w + spacing;
+            else
+            {
+                x = rect.x + border;
+                stretchWidth = (rect.w - fixedWidth - spacing * (objects.size() - 1) - border * 2) / (objects.size() - numFixed);
+            }
+
+            for (LayoutObject* object : objects)
+            {
+                int width;
+
+                if (object->horizontalSizing == Sizing::Fixed)
+                {
+                    width = object->object->rect.w;
+                }
+
+                else
+                {
+                    width = stretchWidth;
+                }
+
+                if (object->verticalSizing == Sizing::Fixed)
+                {
+                    switch (verticalAnchor)
+                    {
+                        case Anchor::Leading:
+                            object->object->setLocation(x, rect.y + border);
+
+                            break;
+
+                        case Anchor::Center:
+                            object->object->setLocation(x, rect.y + rect.h / 2 - object->object->rect.h / 2);
+
+                            break;
+
+                        case Anchor::Trailing:
+                            object->object->setLocation(x, rect.y + rect.h - object->object->rect.h - border);
+
+                            break;
+                    }
+
+                    object->object->setSize(width, object->object->rect.h);
+                }
+
+                else
+                {
+                    object->object->setLocation(x, rect.y + border);
+                    object->object->setSize(width, rect.h - border * 2);
+                }
+
+                x += width + spacing;
+
+                object->object->layout();
             }
 
             break;
@@ -128,56 +172,97 @@ void StackLayout::layout()
 
         case Direction::Vertical:
         {
-            int height = objects[0]->rect.h;
+            int fixedHeight = 0;
+            int numFixed = 0;
 
-            for (unsigned int i = 1; i < objects.size(); i++)
+            for (const LayoutObject* object : objects)
             {
-                height += spacing + objects[i]->rect.h;
+                if (object->verticalSizing == Sizing::Fixed)
+                {
+                    fixedHeight += object->object->rect.h;
+
+                    numFixed++;
+                }
             }
 
             int y;
+            int stretchHeight;
 
-            switch (horizontalAnchor)
-            {
-                case Anchor::Leading:
-                    y = rect.y;
-
-                    break;
-
-                case Anchor::Center:
-                    y = rect.y + rect.h / 2 - height / 2;
-
-                    break;
-
-                case Anchor::Trailing:
-                    y = rect.y + rect.h - height;
-
-                    break;
-            }
-
-            for (GUIObject* object : objects)
+            if (numFixed == objects.size())
             {
                 switch (verticalAnchor)
                 {
                     case Anchor::Leading:
-                        object->setLocation(rect.x, y);
+                        y = rect.y + border;
 
                         break;
 
                     case Anchor::Center:
-                        object->setLocation(rect.x + rect.w / 2 - object->rect.w / 2, y);
+                        y = rect.y + rect.h / 2 - (fixedHeight + spacing * (numFixed - 1)) / 2;
 
                         break;
 
                     case Anchor::Trailing:
-                        object->setLocation(rect.x + rect.w - object->rect.w, y);
+                        y = rect.y + rect.h - (fixedHeight + spacing * (numFixed - 1)) - border;
 
                         break;
                 }
 
-                object->layout();
+                stretchHeight = 0;
+            }
 
-                y += object->rect.h + spacing;
+            else
+            {
+                y = rect.y + border;
+                stretchHeight = (rect.h - fixedHeight - spacing * (objects.size() - 1) - border * 2) / (objects.size() - numFixed);
+            }
+
+            for (LayoutObject* object : objects)
+            {
+                int height;
+
+                if (object->verticalSizing == Sizing::Fixed)
+                {
+                    height = object->object->rect.h;
+                }
+
+                else
+                {
+                    height = stretchHeight;
+                }
+
+                if (object->horizontalSizing == Sizing::Fixed)
+                {
+                    switch (verticalAnchor)
+                    {
+                        case Anchor::Leading:
+                            object->object->setLocation(rect.x + border, y);
+
+                            break;
+
+                        case Anchor::Center:
+                            object->object->setLocation(rect.x + rect.w / 2 - object->object->rect.w / 2, y);
+
+                            break;
+
+                        case Anchor::Trailing:
+                            object->object->setLocation(rect.x + rect.w - object->object->rect.w - border, y);
+
+                            break;
+                    }
+
+                    object->object->setSize(object->object->rect.w, height);
+                }
+
+                else
+                {
+                    object->object->setLocation(rect.x + border, y);
+                    object->object->setSize(rect.w - border * 2, height);
+                }
+
+                y += height + spacing;
+
+                object->object->layout();
             }
 
             break;
@@ -198,6 +283,11 @@ void StackLayout::setHorizontalAnchor(const Anchor anchor)
 void StackLayout::setVerticalAnchor(const Anchor anchor)
 {
     verticalAnchor = anchor;
+}
+
+void StackLayout::setBorder(const int border)
+{
+    this->border = border;
 }
 
 void StackLayout::setSpacing(const int spacing)

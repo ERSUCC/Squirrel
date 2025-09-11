@@ -28,17 +28,33 @@ protected:
 
 };
 
+enum Sizing
+{
+    Fixed,
+    Stretch
+};
+
+struct LayoutObject
+{
+    LayoutObject(GUIObject* object, const Sizing horizontalSizing, const Sizing verticalSizing);
+
+    GUIObject* object;
+
+    const Sizing horizontalSizing;
+    const Sizing verticalSizing;
+};
+
 struct Layout : public GUIObject
 {
     Layout(SDL_Renderer* renderer);
 
     void render() const override;
 
-    void addObject(GUIObject* object);
+    void addObject(GUIObject* object, const Sizing horizontalSizing, const Sizing verticalSizing);
     void removeObject(GUIObject* object);
 
 protected:
-    std::vector<GUIObject*> objects;
+    std::vector<LayoutObject*> objects;
 
 };
 
@@ -66,6 +82,7 @@ struct StackLayout : public Layout
     void setHorizontalAnchor(const Anchor anchor);
     void setVerticalAnchor(const Anchor anchor);
 
+    void setBorder(const int border);
     void setSpacing(const int spacing);
 
 private:
@@ -74,6 +91,7 @@ private:
     Anchor horizontalAnchor;
     Anchor verticalAnchor;
 
+    int border;
     int spacing;
 
 };
