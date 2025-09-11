@@ -1,5 +1,3 @@
-#ifdef __APPLE__
-
 #include "../include/files.h"
 
 #import <AppKit/NSSavePanel.h>
@@ -22,5 +20,3 @@ std::filesystem::path MacFileManager::getSavePath(const std::string name) const
 
     return "";
 }
-
-#endif

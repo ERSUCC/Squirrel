@@ -37,26 +37,22 @@ int init(const int argc, char** argv, ErrorHandler* errorHandler, NetworkManager
         {
             mainThreadQueue->push([=]()
             {
-                const std::filesystem::path path = fileManager->getSavePath(name);
+                Renderer* renderer = new Renderer(errorHandler, networkManager, fileManager);
 
-                std::ofstream file(path);
-
-                if (!file.is_open())
+                renderer->queueFunction([=]()
                 {
-                    errorHandler->push(SquirrelFileException("Failed to save file."));
+                    renderer->setupReceive(name, data);
+                });
 
-                    return;
-                }
+                renderer->run();
 
-                file << data;
-
-                file.close();
+                delete renderer;
             });
         });
 
         while (true)
         {
-            while (std::optional<std::function<void()>> operation = mainThreadQueue->pop())
+            if (std::optional<std::function<void()>> operation = mainThreadQueue->pop())
             {
                 operation.value()();
             }

@@ -64,7 +64,7 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string, 
     {
         while (const Message* message = udpSocket->receive())
         {
-            if (message->data->getProperty("type")->asString().value_or("") == "available")
+            if (message->data->getProperty("type")->asString() == "available")
             {
                 const std::optional<std::string> name = message->data->getProperty("name")->asString();
                 const std::optional<std::string> ip = message->data->getProperty("ip")->asString();
@@ -100,7 +100,9 @@ void NetworkManager::beginListen(const std::function<void(const std::string, con
     {
         while (const Message* message = udpSocket->receive())
         {
-            if (message->data->getProperty("type")->asString().value_or("") == "broadcast")
+            const std::optional<std::string> type = message->data->getProperty("type")->asString();
+
+            if (type == "broadcast")
             {
                 const std::optional<std::string> ip = message->data->getProperty("ip")->asString();
 
@@ -119,7 +121,13 @@ void NetworkManager::beginListen(const std::function<void(const std::string, con
 
                         return;
                     }
+                }
+            }
 
+            else if (type == "connect")
+            {
+                if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
+                {
                     beginReceive(ip.value(), handleReceive);
                 }
             }
@@ -144,6 +152,19 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
     file.close();
 
+    const Message* connectMessage = new Message(new JSONObject(
+    {
+        { "type", new JSONString("connect") },
+        { "ip", new JSONString(address) }
+    }));
+
+    if (!udpSocket->socketSend(connectMessage, ip, UDP_PORT))
+    {
+        errorHandler->push(SquirrelSocketException("Failed to send connection request."));
+
+        return;
+    }
+
     const std::string fileName = path.filename().string();
     const std::string data = Base64::encode(stream.str());
 
@@ -155,11 +176,6 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
         { "file", new JSONString(fileName) },
         { "data", new JSONString(data) }
     }));
-
-    if (transferThread.joinable())
-    {
-        transferThread.join();
-    }
 
     tcpSocket = newTCPSocket();
 
@@ -195,11 +211,6 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
 void NetworkManager::beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive)
 {
-    if (tcpSocket)
-    {
-        return;
-    }
-
     tcpSocket = newTCPSocket();
 
     if (!tcpSocket->create())
@@ -241,7 +252,7 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
             return;
         }
 
-        if (message->data->getProperty("ip")->asString().value_or("") != ip)
+        if (message->data->getProperty("ip")->asString() != ip)
         {
             errorHandler->push(SquirrelSocketException("Invalid connection."));
 
@@ -450,7 +461,7 @@ Message* WinTCPSocket::receive() const
 
 bool WinTCPSocket::destroy()
 {
-    if (shutdown(socketHandle, SD_BOTH) == SOCKET_ERROR)
+    if (shutdown(socketHandle, SD_BOTH) == SOCKET_ERROR && WSAGetLastError() != WSAENOTCONN)
     {
         return false;
     }
@@ -720,7 +731,7 @@ Message* BSDTCPSocket::receive() const
 
 bool BSDTCPSocket::destroy()
 {
-    if (shutdown(socketHandle, SHUT_RDWR) != 0)
+    if (shutdown(socketHandle, SHUT_RDWR) != 0 && errno != ENOTCONN)
     {
         return false;
     }

@@ -10,6 +10,7 @@ Renderer::Renderer(ErrorHandler* errorHandler, NetworkManager* networkManager, F
     SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI, &window, &renderer);
     SDL_SetWindowTitle(window, "Squirrel");
     SDL_AddEventWatch(eventWatch, this);
+    SDL_RaiseWindow(window);
 
     const int unscaledWidth = width;
     const int unscaledHeight = height;
@@ -52,6 +53,24 @@ void Renderer::setPath(const std::string path)
 void Renderer::setupSend()
 {
     networkManager->beginBroadcast(std::bind(&Renderer::handleResponse, this, std::placeholders::_1, std::placeholders::_2));
+}
+
+void Renderer::setupReceive(const std::string name, const std::string& data)
+{
+    const std::filesystem::path path = fileManager->getSavePath(name);
+
+    std::ofstream file(path);
+
+    if (!file.is_open())
+    {
+        errorHandler->push(SquirrelFileException("Failed to save file."));
+
+        return;
+    }
+
+    file << data;
+
+    file.close();
 }
 
 void Renderer::run()
@@ -137,6 +156,11 @@ void Renderer::resized(const unsigned int width, const unsigned int height)
     root->layout();
 
     renderLock.unlock();
+}
+
+void Renderer::queueFunction(const std::function<void()> function)
+{
+    mainThreadQueue->push(function);
 }
 
 void Renderer::handleResponse(const std::string name, const std::string ip)

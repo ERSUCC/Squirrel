@@ -38,11 +38,14 @@ struct Renderer
     void setPath(const std::string path);
 
     void setupSend();
+    void setupReceive(const std::string name, const std::string& data);
 
     void run();
     void render();
 
     void resized(const unsigned int width, const unsigned int height);
+
+    void queueFunction(const std::function<void()> function);
 
 private:
     void handleResponse(const std::string name, const std::string ip);
