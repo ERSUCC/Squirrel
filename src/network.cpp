@@ -152,6 +152,14 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
     file.close();
 
+    const std::string fileName = path.filename().string();
+    const std::string data = Base64::encode(stream.str());
+
+    if (transferThread.joinable())
+    {
+        transferThread.join();
+    }
+
     const Message* connectMessage = new Message(new JSONObject(
     {
         { "type", new JSONString("connect") },
@@ -164,9 +172,6 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
         return;
     }
-
-    const std::string fileName = path.filename().string();
-    const std::string data = Base64::encode(stream.str());
 
     const Message* message = new Message(new JSONObject(
     {
@@ -211,6 +216,11 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
 void NetworkManager::beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive)
 {
+    if (transferThread.joinable())
+    {
+        transferThread.join();
+    }
+
     tcpSocket = newTCPSocket();
 
     if (!tcpSocket->create())
