@@ -79,4 +79,4 @@ private:
 
 };
 
-int eventWatch(void* userdata, SDL_Event* event);
+bool eventWatch(void* userdata, SDL_Event* event);

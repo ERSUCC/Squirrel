@@ -328,7 +328,7 @@ Label::Label(SDL_Renderer* renderer) :
 void Label::render() const
 {
     SDL_SetRenderDrawColor(renderer, textColor.r, textColor.g, textColor.b, textColor.a);
-    SDL_RenderCopy(renderer, textTexture, nullptr, &rect);
+    SDL_RenderTexture(renderer, textTexture, nullptr, &rect);
 }
 
 void Label::setFont(TTF_Font* font)
@@ -366,14 +366,14 @@ void Label::renderTexture()
         return;
     }
 
-    SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), textColor);
+    SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), text.size(), textColor);
 
     textTexture = SDL_CreateTextureFromSurface(renderer, surface);
 
     rect.w = surface->w;
     rect.h = surface->h;
 
-    SDL_FreeSurface(surface);
+    SDL_DestroySurface(surface);
 }
 
 Button::Button(SDL_Renderer* renderer) :

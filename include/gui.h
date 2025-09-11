@@ -21,7 +21,7 @@ struct GUIObject
     virtual void hover(const int x, const int y);
     virtual void click(const int x, const int y);
 
-    SDL_Rect rect = { 0, 0, 0, 0 };
+    SDL_FRect rect = { 0, 0, 0, 0 };
 
 protected:
     SDL_Renderer* renderer;

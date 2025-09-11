@@ -26,24 +26,26 @@ target_include_directories(squirrel PRIVATE include)
 if(WIN32)
     set_target_properties(squirrel PROPERTIES WIN32_EXECUTABLE True)
 
-    target_include_directories(squirrel PRIVATE "C:/Program Files/SDL2/include"
-                                                "C:/Program Files/SDL2_ttf/include")
+    target_include_directories(squirrel PRIVATE "C:/Program Files/SDL3/include"
+                                                "C:/Program Files/SDL3/include/SDL3"
+                                                "C:/Program Files/SDL3_ttf/include/SDL3_ttf")
 
-    target_link_directories(squirrel PRIVATE "C:/Program Files/SDL2/lib/x64"
-                                             "C:/Program Files/SDL2_ttf/lib/x64")
+    target_link_directories(squirrel PRIVATE "C:/Program Files/SDL3/lib/x64"
+                                             "C:/Program Files/SDL3_ttf/lib/x64")
 
-    target_link_libraries(squirrel kernel32 user32 ws2_32 iphlpapi sdl2 sdl2_ttf)
+    target_link_libraries(squirrel kernel32 user32 ws2_32 iphlpapi sdl3 sdl3_ttf)
 elseif(APPLE)
-    target_include_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl2/2.32.4_1/include/SDL2"
-                                                "/opt/homebrew/Cellar/sdl2_ttf/2.24.0/include/SDL2")
+    target_include_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl3/3.2.22/include"
+                                                "/opt/homebrew/Cellar/sdl3/3.2.22/include/SDL3"
+                                                "/opt/homebrew/Cellar/sdl3_ttf/3.2.2/include/SDL3_ttf")
 
-    target_link_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl2/2.32.4_1/lib"
-                                             "/opt/homebrew/Cellar/sdl2_ttf/2.24.0/lib")
+    target_link_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl3/3.2.22/lib"
+                                             "/opt/homebrew/Cellar/sdl3_ttf/3.2.2/lib")
 
-    target_link_libraries(squirrel "-framework CoreFoundation" "-framework AppKit" sdl2 sdl2_ttf)
+    target_link_libraries(squirrel "-framework CoreFoundation" "-framework AppKit" sdl3 sdl3_ttf)
 else()
-    target_include_directories(squirrel PRIVATE "/usr/include/SDL2"
-                                                "/usr/include/SDL2_ttf")
+    target_include_directories(squirrel PRIVATE "/usr/include/SDL3"
+                                                "/usr/include/SDL3_ttf")
 
-    target_link_libraries(squirrel SDL2 SDL2_ttf)
+    target_link_libraries(squirrel SDL3 SDL3_ttf)
 endif()

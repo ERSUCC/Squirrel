@@ -7,15 +7,13 @@ Renderer::Renderer(ErrorHandler* errorHandler, NetworkManager* networkManager, F
     errorHandler(errorHandler), networkManager(networkManager), fileManager(fileManager)
 {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI, &window, &renderer);
-    SDL_SetWindowTitle(window, "Squirrel");
+    SDL_CreateWindowAndRenderer("Squirrel", width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY, &window, &renderer);
     SDL_AddEventWatch(eventWatch, this);
     SDL_RaiseWindow(window);
 
     const int unscaledWidth = width;
-    const int unscaledHeight = height;
 
-    SDL_GL_GetDrawableSize(window, &width, &height);
+    SDL_GetWindowSizeInPixels(window, &width, &height);
 
     scale = (float)width / unscaledWidth;
 
@@ -32,7 +30,7 @@ Renderer::Renderer(ErrorHandler* errorHandler, NetworkManager* networkManager, F
 
     root = stack;
 
-    resized(unscaledWidth, unscaledHeight);
+    resized(width, height);
 }
 
 Renderer::~Renderer()
@@ -92,12 +90,12 @@ void Renderer::run()
         {
             switch (event.type)
             {
-                case SDL_QUIT:
+                case SDL_EVENT_QUIT:
                     running = false;
 
                     break;
 
-                case SDL_MOUSEMOTION:
+                case SDL_EVENT_MOUSE_MOTION:
                     renderLock.lock();
 
                     root->hover(event.button.x * scale, event.button.y * scale);
@@ -106,7 +104,7 @@ void Renderer::run()
 
                     break;
 
-                case SDL_MOUSEBUTTONDOWN:
+                case SDL_EVENT_MOUSE_BUTTON_DOWN:
                     renderLock.lock();
 
                     root->click(event.button.x * scale, event.button.y * scale);
@@ -147,8 +145,8 @@ void Renderer::render()
 
 void Renderer::resized(const unsigned int width, const unsigned int height)
 {
-    this->width = width * scale;
-    this->height = height * scale;
+    this->width = width;
+    this->height = height;
 
     renderLock.lock();
 
@@ -220,27 +218,21 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
     renderLock.unlock();
 }
 
-int eventWatch(void* userdata, SDL_Event* event)
+bool eventWatch(void* userdata, SDL_Event* event)
 {
     switch (event->type)
     {
-        case SDL_WINDOWEVENT:
-            switch (event->window.event)
-            {
-                case SDL_WINDOWEVENT_RESIZED:
-                case SDL_WINDOWEVENT_SIZE_CHANGED:
-                {
-                    Renderer* renderer = (Renderer*)userdata;
+        case SDL_EVENT_WINDOW_RESIZED:
+        case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+        {
+            Renderer* renderer = (Renderer*)userdata;
 
-                    renderer->resized(event->window.data1, event->window.data2);
-                    renderer->render();
+            renderer->resized(event->window.data1, event->window.data2);
+            renderer->render();
 
-                    break;
-                }
-            }
-
-            break;
+            return false;
+        }
     }
 
-    return 1;
+    return true;
 }
