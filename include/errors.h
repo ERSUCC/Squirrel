@@ -1,6 +1,7 @@
 #pragma once
 
 #include <exception>
+#include <string>
 
 #include "safe_queue.hpp"
 
