@@ -18,7 +18,7 @@ void NetworkManager::beginService(const std::function<void(const std::string, co
 {
     udpSocket = newUDPSocket();
 
-    if (!udpSocket->create())
+    if (!udpSocket->create(address))
     {
         errorHandler->push(SquirrelSocketException("Failed to create socket."));
 
@@ -270,7 +270,7 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
 #ifdef _WIN32
 
-bool WinUDPSocket::create()
+bool WinUDPSocket::create(const std::string address)
 {
     socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
 
@@ -281,7 +281,14 @@ bool WinUDPSocket::create()
 
     bool val = true;
 
-    return setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, (char*)&val, sizeof(bool)) != SOCKET_ERROR;
+    if (setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, (char*)&val, sizeof(bool)) == SOCKET_ERROR)
+    {
+        return false;
+    }
+
+    unsigned long addr = inet_addr(address.c_str());
+
+    return setsockopt(socketHandle, IPPROTO_IP, IP_UNICAST_IF, (char*)&addr, sizeof(addr)) != SOCKET_ERROR;
 }
 
 bool WinUDPSocket::socketBind(const std::string address, const unsigned int port) const
@@ -564,7 +571,7 @@ std::string WinNetworkManager::getAddress() const
 
 #else
 
-bool BSDUDPSocket::create()
+bool BSDUDPSocket::create(const std::string address)
 {
     socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
 
@@ -575,7 +582,17 @@ bool BSDUDPSocket::create()
 
     int val = 1;
 
-    return setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) == 0;
+    if (setsockopt(socketHandle, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) == -1)
+    {
+        return false;
+    }
+
+    ip_mreq req;
+
+    req.imr_interface.s_addr = inet_addr(address.c_str());
+    req.imr_multiaddr.s_addr = inet_addr(address.c_str());
+
+    return setsockopt(socketHandle, IPPROTO_IP, IP_MULTICAST_IF, &req, sizeof(req)) != -1;
 }
 
 bool BSDUDPSocket::socketBind(const std::string address, const unsigned int port) const

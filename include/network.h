@@ -19,7 +19,7 @@
 
 struct UDPSocket
 {
-    virtual bool create() = 0;
+    virtual bool create(const std::string address) = 0;
     virtual bool socketBind(const std::string address, const unsigned int port) const = 0;
     virtual bool socketSend(const Message* message, const std::string address, const unsigned int port) const = 0;
 
@@ -87,7 +87,7 @@ private:
 
 struct WinUDPSocket : public UDPSocket
 {
-    bool create() override;
+    bool create(const std::string address) override;
     bool socketBind(const std::string address, const unsigned int port) const override;
     bool socketSend(const Message* message, const std::string address, const unsigned int port) const override;
 
@@ -147,7 +147,7 @@ protected:
 
 struct BSDUDPSocket : public UDPSocket
 {
-    bool create() override;
+    bool create(const std::string address) override;
     bool socketBind(const std::string address, const unsigned int port) const override;
     bool socketSend(const Message* message, const std::string address, const unsigned int port) const override;
 
