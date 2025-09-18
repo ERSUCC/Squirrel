@@ -95,27 +95,268 @@ WindowsServiceManager::WindowsServiceManager(ErrorHandler* errorHandler, Network
 
 bool WindowsServiceManager::writeMessage(const MessageType file, const DataArray* data)
 {
-    return false;
+    HANDLE messageFile;
+    HANDLE sem;
+
+    switch (file)
+    {
+        case MessageType::Service:
+            messageFile = serviceFile;
+            sem = serviceSem;
+
+            break;
+
+        case MessageType::Application:
+            messageFile = applicationFile;
+            sem = applicationSem;
+
+            break;
+    }
+
+    DWORD size = GetFileSize(messageFile, nullptr) + data->length;
+
+    OVERLAPPED overlapped;
+
+    overlapped.hEvent = nullptr;
+
+    if (!LockFileEx(messageFile, LOCKFILE_EXCLUSIVE_LOCK, 0, LOWORD(size), HIWORD(size), &overlapped))
+    {
+        errorHandler->push(SquirrelFileException("Error acquiring file lock."));
+
+        return false;
+    }
+
+    if (SetFilePointer(messageFile, 0, nullptr, FILE_END) == INVALID_SET_FILE_POINTER)
+    {
+        errorHandler->push(SquirrelFileException("Error moving to end of file."));
+
+        return nullptr;
+    }
+
+    DWORD result;
+
+    if (!WriteFile(messageFile, data->data, data->length, &result, nullptr))
+    {
+        errorHandler->push(SquirrelFileException("Error writing to message file."));
+
+        return false;
+    }
+
+    if (!UnlockFileEx(messageFile, 0, LOWORD(size), HIWORD(size), &overlapped))
+    {
+        errorHandler->push(SquirrelFileException("Error releasing file lock."));
+
+        return false;
+    }
+
+    if (!ReleaseSemaphore(sem, 1, nullptr))
+    {
+        errorHandler->push(SquirrelFileException("Error posting to semaphore."));
+
+        return false;
+    }
+
+    return true;
 }
 
 DataArray* WindowsServiceManager::readMessage(const MessageType file)
 {
-    return nullptr;
+    HANDLE messageFile;
+    HANDLE sem;
+
+    switch (file)
+    {
+        case MessageType::Service:
+            messageFile = serviceFile;
+            sem = serviceSem;
+
+            break;
+
+        case MessageType::Application:
+            messageFile = applicationFile;
+            sem = applicationSem;
+
+            break;
+    }
+
+    if (WaitForSingleObject(sem, INFINITE) != WAIT_OBJECT_0)
+    {
+        errorHandler->push(SquirrelFileException("Error waiting for semaphore."));
+
+        return nullptr;
+    }
+
+    DWORD size = GetFileSize(messageFile, nullptr);
+
+    OVERLAPPED overlapped;
+
+    overlapped.hEvent = nullptr;
+
+    if (!LockFileEx(messageFile, LOCKFILE_EXCLUSIVE_LOCK, 0, LOWORD(size), HIWORD(size), &overlapped))
+    {
+        errorHandler->push(SquirrelFileException("Error acquiring file lock."));
+
+        return nullptr;
+    }
+
+    if (SetFilePointer(messageFile, 0, nullptr, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+    {
+        errorHandler->push(SquirrelFileException("Error returning to start of file."));
+
+        return nullptr;
+    }
+
+    char* data = (char*)malloc(sizeof(char) * 4);
+
+    DWORD result;
+
+    if (!ReadFile(messageFile, data, sizeof(char) * 4, &result, nullptr))
+    {
+        errorHandler->push(SquirrelFileException("Error reading from message file."));
+
+        return nullptr;
+    }
+
+    const uint16_t length = *(uint16_t*)(data + 2);
+
+    data = (char*)realloc(data, sizeof(char) * length);
+
+    if (!ReadFile(messageFile, data + 4, sizeof(char) * (length - 4), &result, nullptr))
+    {
+        errorHandler->push(SquirrelFileException("Error reading from message file."));
+
+        return nullptr;
+    }
+
+    size_t block = 1024;
+    size_t max = block;
+    size_t current = 0;
+
+    char* buffer = (char*)malloc(sizeof(char) * max);
+
+    do
+    {
+        if (ReadFile(messageFile, buffer + current, sizeof(char) * block, &result, nullptr))
+        {
+            current += result;
+
+            if (max - current < block)
+            {
+                max *= 2;
+
+                buffer = (char*)realloc(buffer, max);
+            }
+        }
+    } while (result > 0);
+
+    if (SetFilePointer(messageFile, 0, nullptr, FILE_BEGIN) == INVALID_SET_FILE_POINTER || !SetEndOfFile(messageFile))
+    {
+        errorHandler->push(SquirrelFileException("Error clearing message file contents."));
+
+        return nullptr;
+    }
+
+    if (!WriteFile(messageFile, buffer, sizeof(char) * current, &result, nullptr))
+    {
+        errorHandler->push(SquirrelFileException("Error writing to message file."));
+
+        return nullptr;
+    }
+
+    if (!UnlockFileEx(messageFile, 0, LOWORD(size), HIWORD(size), &overlapped))
+    {
+        errorHandler->push(SquirrelFileException("Error releasing file lock."));
+
+        return nullptr;
+    }
+
+    return new DataArray(data, length);
 }
 
 bool WindowsServiceManager::openMessageFiles()
 {
-    return false;
+    LPSTR path = (LPSTR)malloc(sizeof(char) * (MAX_PATH + 13));
+
+    const DWORD length = GetTempPath(MAX_PATH, path);
+
+    if (length == 0)
+    {
+        free(path);
+
+        return false;
+    }
+
+    strncpy(path + length, "sqrl_msg_svc", 12);
+
+    path[length + 12] = '\0';
+
+    serviceFile = CreateFile(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+
+    strncpy(path + length, "sqrl_msg_app", 12);
+
+    applicationFile = CreateFile(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+
+    return serviceFile && applicationFile;
 }
 
 bool WindowsServiceManager::openSemaphores()
 {
-    return false;
+    serviceSem = CreateSemaphore(nullptr, 0, LONG_MAX, "sqrl_sem_svc");
+    applicationSem = CreateSemaphore(nullptr, 0, LONG_MAX, "sqrl_sem_app");
+
+    return serviceSem && applicationSem;
 }
 
 bool WindowsServiceManager::clearMessage(const MessageType file)
 {
-    return false;
+    HANDLE messageFile;
+    HANDLE sem;
+
+    switch (file)
+    {
+        case MessageType::Service:
+            messageFile = serviceFile;
+            sem = serviceSem;
+
+            break;
+
+        case MessageType::Application:
+            messageFile = applicationFile;
+            sem = applicationSem;
+
+            break;
+    }
+
+    while (WaitForSingleObject(sem, 0) != WAIT_TIMEOUT) {}
+
+    DWORD size = GetFileSize(messageFile, nullptr);
+
+    OVERLAPPED overlapped;
+
+    overlapped.hEvent = nullptr;
+
+    if (!LockFileEx(messageFile, LOCKFILE_EXCLUSIVE_LOCK, 0, LOWORD(size), HIWORD(size), &overlapped))
+    {
+        errorHandler->push(SquirrelFileException("Error acquiring file lock."));
+
+        return false;
+    }
+
+    if (SetFilePointer(messageFile, 0, nullptr, FILE_BEGIN) == INVALID_SET_FILE_POINTER || !SetEndOfFile(messageFile))
+    {
+        errorHandler->push(SquirrelFileException("Error clearing message file contents."));
+
+        return false;
+    }
+
+    if (!UnlockFileEx(messageFile, 0, LOWORD(size), HIWORD(size), &overlapped))
+    {
+        errorHandler->push(SquirrelFileException("Error releasing file lock."));
+
+        return false;
+    }
+
+    return true;
 }
 
 #else

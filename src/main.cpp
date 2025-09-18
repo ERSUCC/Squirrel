@@ -64,6 +64,11 @@ int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* ma
 
         while (true)
         {
+            while (std::optional<SquirrelException> error = errorHandler->pop())
+            {
+                std::cout << error.value().what() << "\n";
+            }
+
             if (const std::optional<std::function<void()>> function = mainThreadQueue->pop())
             {
                 function.value()();

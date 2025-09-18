@@ -57,6 +57,8 @@ protected:
 
 #ifdef _WIN32
 
+#include <fileapi.h>
+
 struct WindowsServiceManager : public ServiceManager
 {
     WindowsServiceManager(ErrorHandler* errorHandler, NetworkManager* networkManager);
@@ -70,6 +72,13 @@ protected:
     bool openSemaphores() override;
 
     bool clearMessage(const MessageType file) override;
+
+private:
+    HANDLE serviceFile;
+    HANDLE applicationFile;
+
+    HANDLE serviceSem;
+    HANDLE applicationSem;
 
 };
 
