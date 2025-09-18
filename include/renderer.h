@@ -19,6 +19,7 @@
 #include "network.h"
 #include "files.h"
 #include "safe_queue.hpp"
+#include "service.h"
 
 struct Target
 {
@@ -32,20 +33,18 @@ struct Target
 
 struct Renderer
 {
-    Renderer(ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager);
+    Renderer(ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager, ServiceManager* serviceManager);
     ~Renderer();
 
     void setPath(const std::string path);
 
-    void setupSend();
+    void setupMain();
     void setupReceive(const std::string name, const std::string& data);
 
     void run();
     void render();
 
     void resized(const unsigned int width, const unsigned int height);
-
-    void queueFunction(const std::function<void()> function);
 
 private:
     void handleResponse(const std::string name, const std::string ip);
@@ -65,11 +64,12 @@ private:
     std::chrono::high_resolution_clock clock;
     std::chrono::time_point<std::chrono::high_resolution_clock> lastFrame;
 
+    ThreadSafeQueue<std::function<void()>>* mainThreadQueue;
+
     ErrorHandler* errorHandler;
     NetworkManager* networkManager;
     FileManager* fileManager;
-
-    ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
+    ServiceManager* serviceManager;
 
     Layout* root;
 

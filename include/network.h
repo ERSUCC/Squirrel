@@ -13,7 +13,7 @@
 #include "json.h"
 
 #define UDP_PORT 4242
-#define TCP_PORT 4244
+#define TCP_PORT 4243
 
 #define BUFFER_SIZE 512
 
@@ -47,8 +47,12 @@ struct NetworkManager
 {
     NetworkManager(ErrorHandler* errorHandler, const std::string name, const std::string address);
 
-    void beginBroadcast(const std::function<void(const std::string, const std::string)> handleResponse);
-    void beginListen(const std::function<void(const std::string, const std::string&)> handleReceive);
+    virtual unsigned int convertAddress(const std::string address) const = 0;
+
+    virtual std::string convertAddress(const unsigned int address) const = 0;
+
+    void beginService(const std::function<void(const std::string, const std::string)> handleResponse, const std::function<void(const std::string)> handleConnect);
+    void beginConnect(const std::string ip);
     void beginTransfer(const std::filesystem::path path, const std::string ip);
     void beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive);
 
@@ -120,6 +124,10 @@ struct WinNetworkManager : public NetworkManager
     WinNetworkManager(ErrorHandler* errorHandler);
     ~WinNetworkManager();
 
+    unsigned int convertAddress(const std::string address) const override;
+
+    std::string convertAddress(const unsigned int address) const override;
+
 protected:
     UDPSocket* newUDPSocket() const override;
     TCPSocket* newTCPSocket() const override;
@@ -174,6 +182,10 @@ private:
 struct BSDNetworkManager : public NetworkManager
 {
     BSDNetworkManager(ErrorHandler* errorHandler);
+
+    unsigned int convertAddress(const std::string address) const override;
+
+    std::string convertAddress(const unsigned int address) const override;
 
 protected:
     UDPSocket* newUDPSocket() const override;

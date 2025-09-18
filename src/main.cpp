@@ -1,13 +1,14 @@
 #include "../include/network.h"
 #include "../include/renderer.h"
 #include "../include/safe_queue.hpp"
+#include "../include/service.h"
 #include "../include/files.h"
 
 #include <functional>
 #include <iostream>
 #include <optional>
 
-int init(const int argc, char** argv, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager)
+int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager, ServiceManager* serviceManager)
 {
     if (argc == 0)
     {
@@ -16,45 +17,56 @@ int init(const int argc, char** argv, ErrorHandler* errorHandler, NetworkManager
         return 1;
     }
 
-    if (strncmp(argv[0], "--send", 6) == 0)
+    if (strncmp(argv[0], "--app", 6) == 0)
     {
-        Renderer* renderer = new Renderer(errorHandler, networkManager, fileManager);
+        Renderer* renderer = new Renderer(mainThreadQueue, errorHandler, networkManager, fileManager, serviceManager);
 
         if (argc > 1)
         {
             renderer->setPath(argv[1]);
         }
 
-        renderer->setupSend();
+        renderer->setupMain();
         renderer->run();
     }
 
-    else if (strncmp(argv[0], "--receive", 9) == 0)
+    else if (strncmp(argv[0], "--service", 9) == 0)
     {
-        ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
+        serviceManager->startService();
 
-        networkManager->beginListen([=](const std::string name, const std::string& data)
+        networkManager->beginService([=](const std::string name, const std::string ip)
+        {
+            const size_t length = name.size() + 9;
+
+            char* data = (char*)malloc(sizeof(char) * length);
+
+            data[0] = MessageConstants::RESPONSE;
+
+            *(uint16_t*)(data + 2) = length;
+            *(uint32_t*)(data + 4) = networkManager->convertAddress(ip);
+
+            strncpy(data + 8, name.c_str(), name.size());
+
+            data[length - 1] = '\0';
+
+            serviceManager->writeMessage(MessageType::Application, new DataArray(data, length));
+        }, std::bind(&NetworkManager::beginReceive, networkManager, std::placeholders::_1, [=](const std::string name, const std::string& data)
         {
             mainThreadQueue->push([=]()
             {
-                Renderer* renderer = new Renderer(errorHandler, networkManager, fileManager);
+                Renderer* renderer = new Renderer(mainThreadQueue, errorHandler, networkManager, fileManager, serviceManager);
 
-                renderer->queueFunction([=]()
-                {
-                    renderer->setupReceive(name, data);
-                });
-
-                renderer->run();
+                renderer->setupReceive(name, data);
 
                 delete renderer;
             });
-        });
+        }));
 
         while (true)
         {
-            if (std::optional<std::function<void()>> operation = mainThreadQueue->pop())
+            if (const std::optional<std::function<void()>> function = mainThreadQueue->pop())
             {
-                operation.value()();
+                function.value()();
             }
         }
     }
@@ -77,7 +89,10 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
 
     freopen("CONOUT$", "w", stdout); // this too
 
+    ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
+
     ErrorHandler* errorHandler = new ErrorHandler();
+    NetworkManager* networkManager = new WinNetworkManager(errorHandler);
 
     if (wcsnlen(pCmdLine, 1) > 0)
     {
@@ -98,28 +113,34 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
             argvChar[i][length] = '\0';
         }
 
-        return init(argc, argvChar, errorHandler, new WinNetworkManager(errorHandler), new WinFileManager());
+        return init(argc, argvChar, mainThreadQueue, errorHandler, networkManager, new WinFileManager(), new WindowsServiceManager(errorHandler, networkManager));
     }
 
-    return init(0, nullptr, errorHandler, new WinNetworkManager(errorHandler), new WinFileManager());
+    return init(0, nullptr, mainThreadQueue, errorHandler, networkManager, new WinFileManager(), new WindowsServiceManager(errorHandler, networkManager));
 }
 
 #elif __APPLE__
 
 int main(int argc, char** argv)
 {
-    ErrorHandler* errorHandler = new ErrorHandler();
+    ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
 
-    return init(argc - 1, argv + 1, errorHandler, new BSDNetworkManager(errorHandler), new MacFileManager());
+    ErrorHandler* errorHandler = new ErrorHandler();
+    NetworkManager* networkManager = new BSDNetworkManager(errorHandler);
+
+    return init(argc - 1, argv + 1, mainThreadQueue, errorHandler, networkManager, new MacFileManager(), new POSIXServiceManager(errorHandler, networkManager));
 }
 
 #else
 
 int main(int argc, char** argv)
 {
-    ErrorHandler* errorHandler = new ErrorHandler();
+    ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
 
-    return init(argc - 1, argv + 1, errorHandler, new BSDNetworkManager(errorHandler), new LinuxFileManager());
+    ErrorHandler* errorHandler = new ErrorHandler();
+    NetworkManager* networkManager = new BSDNetworkManager(errorHandler);
+
+    return init(argc - 1, argv + 1, mainThreadQueue, errorHandler, networkManager, new LinuxFileManager(), new POSIXServiceManager(errorHandler, networkManager));
 }
 
 #endif

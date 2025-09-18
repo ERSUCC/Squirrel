@@ -14,7 +14,7 @@ NetworkManager::NetworkManager(ErrorHandler* errorHandler, const std::string nam
     }
 }
 
-void NetworkManager::beginBroadcast(const std::function<void(const std::string, const std::string)> handleResponse)
+void NetworkManager::beginService(const std::function<void(const std::string, const std::string)> handleResponse, const std::function<void(const std::string)> handleConnect)
 {
     udpSocket = newUDPSocket();
 
@@ -25,7 +25,7 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string, 
         return;
     }
 
-    if (!udpSocket->socketBind(address, UDP_PORT))
+    if (!udpSocket->socketBind("0.0.0.0", UDP_PORT))
     {
         errorHandler->push(SquirrelSocketException("Failed to bind socket."));
 
@@ -64,7 +64,9 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string, 
     {
         while (const Message* message = udpSocket->receive())
         {
-            if (message->data->getProperty("type")->asString() == "available")
+            const std::optional<std::string> type = message->data->getProperty("type")->asString();
+
+            if (type == "available")
             {
                 const std::optional<std::string> name = message->data->getProperty("name")->asString();
                 const std::optional<std::string> ip = message->data->getProperty("ip")->asString();
@@ -74,35 +76,8 @@ void NetworkManager::beginBroadcast(const std::function<void(const std::string, 
                     handleResponse(name.value(), ip.value());
                 }
             }
-        }
-    });
-}
 
-void NetworkManager::beginListen(const std::function<void(const std::string, const std::string&)> handleReceive)
-{
-    udpSocket = newUDPSocket();
-
-    if (!udpSocket->create())
-    {
-        errorHandler->push(SquirrelSocketException("Failed to create socket."));
-
-        return;
-    }
-
-    if (!udpSocket->socketBind("0.0.0.0", UDP_PORT))
-    {
-        errorHandler->push(SquirrelSocketException("Failed to bind socket."));
-
-        return;
-    }
-
-    listenThread = std::thread([=]()
-    {
-        while (const Message* message = udpSocket->receive())
-        {
-            const std::optional<std::string> type = message->data->getProperty("type")->asString();
-
-            if (type == "broadcast")
+            else if (type == "broadcast")
             {
                 const std::optional<std::string> ip = message->data->getProperty("ip")->asString();
 
@@ -128,11 +103,27 @@ void NetworkManager::beginListen(const std::function<void(const std::string, con
             {
                 if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
                 {
-                    beginReceive(ip.value(), handleReceive);
+                    handleConnect(ip.value());
                 }
             }
         }
     });
+}
+
+void NetworkManager::beginConnect(const std::string ip)
+{
+    const Message* connectMessage = new Message(new JSONObject(
+    {
+        { "type", new JSONString("connect") },
+        { "ip", new JSONString(address) }
+    }));
+
+    if (!udpSocket->socketSend(connectMessage, ip, UDP_PORT))
+    {
+        errorHandler->push(SquirrelSocketException("Failed to send connection request."));
+
+        return;
+    }
 }
 
 void NetworkManager::beginTransfer(const std::filesystem::path path, const std::string ip)
@@ -158,19 +149,6 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
     if (transferThread.joinable())
     {
         transferThread.join();
-    }
-
-    const Message* connectMessage = new Message(new JSONObject(
-    {
-        { "type", new JSONString("connect") },
-        { "ip", new JSONString(address) }
-    }));
-
-    if (!udpSocket->socketSend(connectMessage, ip, UDP_PORT))
-    {
-        errorHandler->push(SquirrelSocketException("Failed to send connection request."));
-
-        return;
     }
 
     const Message* message = new Message(new JSONObject(
@@ -502,6 +480,20 @@ WinNetworkManager::~WinNetworkManager()
     WSACleanup();
 }
 
+unsigned int WinNetworkManager::convertAddress(const std::string address) const
+{
+    return inet_addr(address.c_str());
+}
+
+std::string WinNetworkManager::convertAddress(const unsigned int address) const
+{
+    in_addr addr;
+
+    addr.s_addr = address;
+
+    return inet_ntoa(addr);
+}
+
 UDPSocket* WinNetworkManager::newUDPSocket() const
 {
     return new WinUDPSocket();
@@ -753,6 +745,20 @@ bool BSDTCPSocket::destroy()
 
 BSDNetworkManager::BSDNetworkManager(ErrorHandler* errorHandler) :
     NetworkManager(errorHandler, getName(), getAddress()) {}
+
+unsigned int BSDNetworkManager::convertAddress(const std::string ip) const
+{
+    return inet_addr(ip.c_str());
+}
+
+std::string BSDNetworkManager::convertAddress(const unsigned int address) const
+{
+    in_addr addr;
+
+    addr.s_addr = address;
+
+    return inet_ntoa(addr);
+}
 
 UDPSocket* BSDNetworkManager::newUDPSocket() const
 {
