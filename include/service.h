@@ -84,6 +84,7 @@ private:
 
 #else
 
+#include <sys/file.h>
 #include <semaphore.h>
 #include <unistd.h>
 
