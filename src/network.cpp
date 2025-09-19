@@ -422,34 +422,50 @@ bool WinTCPSocket::socketSend(const Message* message) const
 {
     std::stringstream stream;
 
+    stream << "00000000";
+
     message->serialize(stream);
 
     const std::string& str = stream.str();
+
+    *(uint64_t*)str.data() = str.size() - 8;
 
     return send(socketHandle, str.c_str(), str.size() + 1, 0) == str.size() + 1;
 }
 
 Message* WinTCPSocket::receive() const
 {
-    std::stringstream stream;
+    char buffer[8];
 
-    char buffer[BUFFER_SIZE];
-
-    int n;
-
-    do
+    if (recv(socketHandle, buffer, 8, 0) == -1)
     {
-        n = recv(socketHandle, buffer, BUFFER_SIZE - 1, 0);
+        return nullptr;
+    }
 
-        if (n == -1)
+    uint64_t length = *(uint64_t*)buffer;
+
+    char* data = (char*)malloc(sizeof(char) * (length + 1));
+
+    int received = 0;
+
+    do {
+        int result = recv(socketHandle, data + received, length - received, 0);
+
+        if (result == -1)
         {
+            free(data);
+
             return nullptr;
         }
 
-        buffer[n] = '\0';
+        received += result;
+    } while (received < length);
 
-        stream << buffer;
-    } while (n > 0);
+    data[length] = '\0';
+
+    std::stringstream stream(data);
+
+    free(data);
 
     return Message::deserialize(stream);
 }
@@ -716,34 +732,50 @@ bool BSDTCPSocket::socketSend(const Message* message) const
 {
     std::stringstream stream;
 
+    stream << "00000000";
+
     message->serialize(stream);
 
     const std::string& str = stream.str();
+
+    *(uint64_t*)str.data() = str.size() - 8;
 
     return send(socketHandle, str.c_str(), str.size() + 1, 0) == str.size() + 1;
 }
 
 Message* BSDTCPSocket::receive() const
 {
-    std::stringstream stream;
+    char buffer[8];
 
-    char buffer[BUFFER_SIZE];
-
-    int n;
-
-    do
+    if (recv(socketHandle, buffer, 8, 0) == -1)
     {
-        n = recv(socketHandle, buffer, BUFFER_SIZE - 1, 0);
+        return nullptr;
+    }
 
-        if (n == -1)
+    uint64_t length = *(uint64_t*)buffer;
+
+    char* data = (char*)malloc(sizeof(char) * (length + 1));
+
+    int received = 0;
+
+    do {
+        int result = recv(socketHandle, data + received, length - received, 0);
+
+        if (result == -1)
         {
+            free(data);
+
             return nullptr;
         }
 
-        buffer[n] = '\0';
+        received += result;
+    } while (received < length);
 
-        stream << buffer;
-    } while (n > 0);
+    data[length] = '\0';
+
+    std::stringstream stream(data);
+
+    free(data);
 
     return Message::deserialize(stream);
 }
