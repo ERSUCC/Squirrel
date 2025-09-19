@@ -57,7 +57,7 @@ void Renderer::setupReceive(const std::string name, const std::string& data)
 {
     const std::filesystem::path path = fileManager->getSavePath(name);
 
-    std::ofstream file(path);
+    std::ofstream file(path, std::ios::binary);
 
     if (!file.is_open())
     {
