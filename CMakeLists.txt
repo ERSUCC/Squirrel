@@ -25,6 +25,8 @@ add_executable(squirrel ${SQUIRREL_SOURCES})
 target_include_directories(squirrel PRIVATE include)
 
 if(WIN32)
+    target_compile_options(squirrel PRIVATE /MT)
+
     set_target_properties(squirrel PROPERTIES WIN32_EXECUTABLE True)
 
     target_include_directories(squirrel PRIVATE "C:/Program Files/SDL3/include"
