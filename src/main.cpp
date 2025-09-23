@@ -10,27 +10,7 @@
 
 int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager, ServiceManager* serviceManager)
 {
-    if (argc == 0)
-    {
-        std::cout << "No arguments provided.\n";
-
-        return 1;
-    }
-
-    if (strncmp(argv[0], "--app", 6) == 0)
-    {
-        Renderer* renderer = new Renderer(mainThreadQueue, errorHandler, networkManager, fileManager, serviceManager);
-
-        if (argc > 1)
-        {
-            renderer->setPath(argv[1]);
-        }
-
-        renderer->setupMain();
-        renderer->run();
-    }
-
-    else if (strncmp(argv[0], "--service", 9) == 0)
+    if (argc > 0 && strncmp(argv[0], "--service", 9) == 0)
     {
         serviceManager->startService();
 
@@ -78,9 +58,22 @@ int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* ma
 
     else
     {
-        std::cout << "Unknown argument \"" << argv[0] << "\".\n";
+        Renderer* renderer = new Renderer(mainThreadQueue, errorHandler, networkManager, fileManager, serviceManager);
 
-        return 1;
+        if (argc != 0)
+        {
+            if (!std::filesystem::exists(argv[0]))
+            {
+                std::cout << "Specified file does not exist.\n";
+
+                return 1;
+            }
+
+            renderer->setPath(argv[0]);
+        }
+
+        renderer->setupMain();
+        renderer->run();
     }
 
     return 0;

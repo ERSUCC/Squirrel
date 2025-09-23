@@ -46,6 +46,20 @@ elseif(APPLE)
                                              "/opt/homebrew/Cellar/sdl3_ttf/3.2.2/lib")
 
     target_link_libraries(squirrel "-framework CoreFoundation" "-framework AppKit" sdl3 sdl3_ttf)
+
+    set(CMAKE_INSTALL_PREFIX install/Squirrel.app/Contents)
+
+    install(TARGETS squirrel
+            RUNTIME_DEPENDENCIES
+            RUNTIME DESTINATION MacOS
+            LIBRARY DESTINATION Frameworks
+            FRAMEWORK DESTINATION Frameworks
+            DESTINATION MacOS)
+
+    install(FILES dist/mac/Info.plist DESTINATION .)
+    install(FILES resources/fonts/OpenSans-Variable.ttf DESTINATION Resources/fonts)
+
+    install(CODE "execute_process(COMMAND sh dist/mac/bundle.sh ${CMAKE_INSTALL_PREFIX})")
 else()
     target_include_directories(squirrel PRIVATE "/usr/include/SDL3"
                                                 "/usr/include/SDL3_ttf")

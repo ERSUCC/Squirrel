@@ -54,6 +54,11 @@ std::filesystem::path WinFileManager::getSavePath(const std::string name) const
     return std::filesystem::path(path);
 }
 
+std::filesystem::path WinFileManager::getResourcePath(const std::string name) const
+{
+    return std::filesystem::path("resources/" + name);
+}
+
 #elif __linux__
 
 std::filesystem::path LinuxFileManager::getSavePath(const std::string name) const
@@ -76,6 +81,11 @@ std::filesystem::path LinuxFileManager::getSavePath(const std::string name) cons
     buffer[read - 1] = '\0';
 
     return buffer;
+}
+
+std::filesystem::path LinuxFileManager::getResourcePath(const std::string name) const
+{
+    return std::filesystem::path("resources/" + name);
 }
 
 #endif

@@ -6,6 +6,7 @@
 struct FileManager
 {
     virtual std::filesystem::path getSavePath(const std::string name) const = 0;
+    virtual std::filesystem::path getResourcePath(const std::string name) const = 0;
 };
 
 #ifdef _WIN32
@@ -16,6 +17,7 @@ struct FileManager
 struct WinFileManager : public FileManager
 {
     std::filesystem::path getSavePath(const std::string name) const override;
+    std::filesystem::path getResourcePath(const std::string name) const override;
 };
 
 #elif __APPLE__
@@ -23,6 +25,7 @@ struct WinFileManager : public FileManager
 struct MacFileManager : public FileManager
 {
     std::filesystem::path getSavePath(const std::string name) const override;
+    std::filesystem::path getResourcePath(const std::string name) const override;
 };
 
 #else
@@ -33,6 +36,7 @@ struct MacFileManager : public FileManager
 struct LinuxFileManager : public FileManager
 {
     std::filesystem::path getSavePath(const std::string name) const override;
+    std::filesystem::path getResourcePath(const std::string name) const override;
 };
 
 #endif
