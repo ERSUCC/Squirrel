@@ -19,7 +19,7 @@ Renderer::Renderer(ThreadSafeQueue<std::function<void()>>* mainThreadQueue, Erro
 
     TTF_Init();
 
-    font = TTF_OpenFont(fileManager->getResourcePath("fonts/OpenSans-Variable.ttf").c_str(), 12 * scale);
+    font = TTF_OpenFont(fileManager->getResourcePath("fonts/OpenSans-Variable.ttf").string().c_str(), 12 * scale);
 
     StackLayout* stack = new StackLayout(renderer);
 

@@ -13,6 +13,7 @@ struct FileManager
 
 #include <combaseapi.h>
 #include <ShObjIdl.h>
+#include <Windows.h>
 
 struct WinFileManager : public FileManager
 {

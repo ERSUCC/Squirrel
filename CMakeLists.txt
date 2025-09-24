@@ -37,6 +37,14 @@ if(WIN32)
                                              "C:/Program Files/SDL3_ttf/lib/x64")
 
     target_link_libraries(squirrel kernel32 user32 ws2_32 iphlpapi sdl3 sdl3_ttf)
+
+    set(CMAKE_INSTALL_PREFIX install/Squirrel)
+
+    install(TARGETS squirrel DESTINATION .)
+
+    install(FILES "C:/Program Files/SDL3/lib/x64/SDL3.dll" DESTINATION .)
+    install(FILES "C:/Program Files/SDL3_ttf/lib/x64/SDL3_ttf.dll" DESTINATION .)
+    install(FILES resources/fonts/OpenSans-Variable.ttf DESTINATION resources/fonts)
 elseif(APPLE)
     target_include_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl3/3.2.22/include"
                                                 "/opt/homebrew/Cellar/sdl3/3.2.22/include/SDL3"

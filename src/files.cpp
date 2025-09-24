@@ -56,7 +56,14 @@ std::filesystem::path WinFileManager::getSavePath(const std::string name) const
 
 std::filesystem::path WinFileManager::getResourcePath(const std::string name) const
 {
-    return std::filesystem::path("resources/" + name);
+    char path[MAX_PATH + 1];
+
+    if (GetModuleFileName(nullptr, path, MAX_PATH) == 0)
+    {
+        return std::filesystem::path("resources") / name;
+    }
+
+    return std::filesystem::path(std::filesystem::path(path).parent_path() / "resources" / name);
 }
 
 #elif __linux__
