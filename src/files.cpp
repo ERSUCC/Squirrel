@@ -92,7 +92,7 @@ std::filesystem::path LinuxFileManager::getSavePath(const std::string name) cons
 
 std::filesystem::path LinuxFileManager::getResourcePath(const std::string name) const
 {
-    return std::filesystem::path("resources/" + name);
+    return std::filesystem::canonical("/proc/self/exe").parent_path() / "resources" / name;
 }
 
 #endif

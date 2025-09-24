@@ -73,4 +73,12 @@ else()
                                                 "/usr/include/SDL3_ttf")
 
     target_link_libraries(squirrel SDL3 SDL3_ttf)
+
+    set(CMAKE_INSTALL_PREFIX install/Squirrel)
+
+    install(TARGETS squirrel DESTINATION .)
+
+    install(FILES "/usr/local/lib/libSDL3.so" DESTINATION .)
+    install(FILES "/usr/lib/x86_64-linux-gnu/libSDL3_ttf.so" DESTINATION .)
+    install(FILES resources/fonts/OpenSans-Variable.ttf DESTINATION resources/fonts)
 endif()
