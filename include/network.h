@@ -12,8 +12,9 @@
 #include "errors.h"
 #include "json.h"
 
-#define UDP_PORT 4242
-#define TCP_PORT 4243
+#define BROADCAST_PORT 4242
+#define TRANSFER_PORT 4243
+#define SERVICE_PORT 4244
 
 #define BUFFER_SIZE 512
 
@@ -26,7 +27,7 @@ struct UDPSocket
     virtual Message* receive() const = 0;
 
     virtual bool destroy() = 0;
-    virtual bool isAlive() = 0;
+    virtual bool isAlive() const = 0;
 };
 
 struct TCPSocket
@@ -41,6 +42,7 @@ struct TCPSocket
     virtual Message* receive() const = 0;
 
     virtual bool destroy() = 0;
+    virtual bool isAlive() const = 0;
 };
 
 struct NetworkManager
@@ -51,7 +53,8 @@ struct NetworkManager
 
     virtual std::string convertAddress(const unsigned int address) const = 0;
 
-    void beginService(const std::function<void(const std::string, const std::string)> handleResponse, const std::function<void(const std::string)> handleConnect);
+    void beginService(const std::function<void(const std::string, const std::string&)> handleReceive);
+    void beginClient(const std::function<void(const std::string, const std::string)> handleResponse);
     void beginConnect(const std::string ip);
     void beginTransfer(const std::filesystem::path path, const std::string ip);
     void beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive);
@@ -69,13 +72,15 @@ private:
     const std::string name;
     const std::string address;
 
-    UDPSocket* udpSocket = nullptr;
-    TCPSocket* tcpSocket = nullptr;
+    UDPSocket* broadcastSocket = nullptr;
+    TCPSocket* transferSocket = nullptr;
+    TCPSocket* serviceSocket = nullptr;
 
     std::thread broadcastThread;
     std::thread responseThread;
     std::thread listenThread;
     std::thread transferThread;
+    std::thread serviceThread;
 
 };
 
@@ -94,7 +99,7 @@ struct WinUDPSocket : public UDPSocket
     Message* receive() const override;
 
     bool destroy() override;
-    bool isAlive() override;
+    bool isAlive() const override;
 
 private:
     SOCKET socketHandle = INVALID_SOCKET;
@@ -113,6 +118,7 @@ struct WinTCPSocket : public TCPSocket
     Message* receive() const override;
 
     bool destroy() override;
+    bool isAlive() const override;
 
 private:
     SOCKET socketHandle = INVALID_SOCKET;

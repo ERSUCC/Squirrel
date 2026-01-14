@@ -3,8 +3,8 @@
 Target::Target(const GUIObject* object, const std::string name, const std::string ip) :
     object(object), name(name), ip(ip) {}
 
-Renderer::Renderer(ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager, ServiceManager* serviceManager) :
-    mainThreadQueue(mainThreadQueue), errorHandler(errorHandler), networkManager(networkManager), fileManager(fileManager), serviceManager(serviceManager)
+Renderer::Renderer(ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager) :
+    mainThreadQueue(mainThreadQueue), errorHandler(errorHandler), networkManager(networkManager), fileManager(fileManager)
 {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer("Squirrel", width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY, &window, &renderer);
@@ -50,7 +50,7 @@ void Renderer::setPath(const std::string path)
 
 void Renderer::setupMain()
 {
-    serviceManager->connectService(std::bind(&Renderer::handleResponse, this, std::placeholders::_1, std::placeholders::_2));
+    networkManager->beginClient(std::bind(&Renderer::handleResponse, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void Renderer::setupReceive(const std::string name, const std::string& data)
@@ -199,18 +199,6 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
                 return;
             }
 
-            const size_t length = 9;
-
-            char* data = (char*)malloc(sizeof(char) * length);
-
-            data[0] = MessageConstants::CONNECTION;
-
-            *(uint16_t*)(data + 2) = length;
-            *(uint32_t*)(data + 4) = networkManager->convertAddress(ip);
-
-            data[length - 1] = '\0';
-
-            serviceManager->writeMessage(MessageType::Service, new DataArray(data, length));
             networkManager->beginTransfer(path, ip);
         });
 

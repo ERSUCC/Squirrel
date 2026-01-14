@@ -19,7 +19,6 @@
 #include "network.h"
 #include "files.h"
 #include "safe_queue.hpp"
-#include "service.h"
 
 struct Target
 {
@@ -33,7 +32,7 @@ struct Target
 
 struct Renderer
 {
-    Renderer(ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager, ServiceManager* serviceManager);
+    Renderer(ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager);
     ~Renderer();
 
     void setPath(const std::string path);
@@ -69,7 +68,6 @@ private:
     ErrorHandler* errorHandler;
     NetworkManager* networkManager;
     FileManager* fileManager;
-    ServiceManager* serviceManager;
 
     Layout* root;
 

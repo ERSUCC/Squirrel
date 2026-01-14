@@ -14,18 +14,18 @@ NetworkManager::NetworkManager(ErrorHandler* errorHandler, const std::string nam
     }
 }
 
-void NetworkManager::beginService(const std::function<void(const std::string, const std::string)> handleResponse, const std::function<void(const std::string)> handleConnect)
+void NetworkManager::beginService(const std::function<void(const std::string, const std::string&)> handleReceive)
 {
-    udpSocket = newUDPSocket();
+    broadcastSocket = newUDPSocket();
 
-    if (!udpSocket->create(address))
+    if (!broadcastSocket->create(address))
     {
         errorHandler->push(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
 
-    if (!udpSocket->socketBind("0.0.0.0", UDP_PORT))
+    if (!broadcastSocket->socketBind("0.0.0.0", BROADCAST_PORT))
     {
         errorHandler->push(SquirrelSocketException("Failed to bind socket."));
 
@@ -37,7 +37,7 @@ void NetworkManager::beginService(const std::function<void(const std::string, co
         std::chrono::high_resolution_clock clock;
         std::chrono::time_point<std::chrono::high_resolution_clock> last;
 
-        while (udpSocket->isAlive())
+        while (broadcastSocket->isAlive())
         {
             if ((clock.now() - last).count() >= 1e9)
             {
@@ -48,7 +48,7 @@ void NetworkManager::beginService(const std::function<void(const std::string, co
                     { "ip", new JSONString(address) }
                 }));
 
-                if (!udpSocket->socketSend(broadcastMessage, "255.255.255.255", UDP_PORT))
+                if (!broadcastSocket->socketSend(broadcastMessage, "255.255.255.255", BROADCAST_PORT))
                 {
                     errorHandler->push(SquirrelSocketException("Failed to broadcast message."));
 
@@ -62,7 +62,7 @@ void NetworkManager::beginService(const std::function<void(const std::string, co
 
     responseThread = std::thread([=]()
     {
-        while (const Message* message = udpSocket->receive())
+        while (const Message* message = broadcastSocket->receive())
         {
             const std::optional<std::string> type = message->data->getProperty("type")->asString();
 
@@ -73,7 +73,14 @@ void NetworkManager::beginService(const std::function<void(const std::string, co
 
                 if (name && ip && ip != address)
                 {
-                    handleResponse(name.value(), ip.value());
+                    const Message* response = new Message(new JSONObject(
+                    {
+                        { "type", new JSONString("response") },
+                        { "name", new JSONString(name.value()) },
+                        { "ip", new JSONString(ip.value()) }
+                    }));
+
+                    serviceSocket->socketSend(response);
                 }
             }
 
@@ -90,7 +97,7 @@ void NetworkManager::beginService(const std::function<void(const std::string, co
                         { "ip", new JSONString(address) }
                     }));
 
-                    if (!udpSocket->socketSend(response, ip.value(), UDP_PORT))
+                    if (!broadcastSocket->socketSend(response, ip.value(), BROADCAST_PORT))
                     {
                         errorHandler->push(SquirrelSocketException("Failed to respond to broadcast."));
 
@@ -103,8 +110,146 @@ void NetworkManager::beginService(const std::function<void(const std::string, co
             {
                 if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
                 {
-                    handleConnect(ip.value());
+                    beginReceive(ip.value(), handleReceive);
                 }
+            }
+        }
+    });
+
+    serviceSocket = newTCPSocket();
+
+    if (!serviceSocket->create())
+    {
+        errorHandler->push(SquirrelSocketException("Failed to create socket."));
+
+        return;
+    }
+
+    if (!serviceSocket->socketBind(address, SERVICE_PORT))
+    {
+        errorHandler->push(SquirrelSocketException("Failed to bind socket."));
+
+        return;
+    }
+
+    if (!serviceSocket->socketListen())
+    {
+        errorHandler->push(SquirrelSocketException("Failed to listen on socket."));
+
+        return;
+    }
+
+    serviceThread = std::thread([=]()
+    {
+        while (serviceSocket->isAlive())
+        {
+            if (!serviceSocket->socketAccept())
+            {
+                errorHandler->push(SquirrelSocketException("Failed to accept connection."));
+
+                return;
+            }
+
+            while (serviceSocket->isAlive())
+            {
+                const Message* message = serviceSocket->receive();
+
+                if (!message)
+                {
+                    errorHandler->push(SquirrelSocketException("Failed to receive message from client."));
+
+                    return;
+                }
+
+                if (const std::optional<std::string> type = message->data->getProperty("type")->asString())
+                {
+                    if (type == "connect")
+                    {
+                        if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
+                        {
+                            beginConnect(ip.value());
+                        }
+
+                        else
+                        {
+                            errorHandler->push(SquirrelSocketException("Invalid message format."));
+                        }
+                    }
+
+                    else
+                    {
+                        errorHandler->push(SquirrelSocketException("Unknown message type \"" + type.value() + "\"."));
+                    }
+                }
+
+                else
+                {
+                    errorHandler->push(SquirrelSocketException("Invalid message format."));
+                }
+            }
+        }
+    });
+}
+
+void NetworkManager::beginClient(const std::function<void(const std::string, const std::string)> handleResponse)
+{
+    serviceSocket = newTCPSocket();
+
+    if (!serviceSocket->create())
+    {
+        errorHandler->push(SquirrelSocketException("Failed to create socket."));
+
+        return;
+    }
+
+    serviceThread = std::thread([=]()
+    {
+        if (!serviceSocket->socketConnect(address, SERVICE_PORT))
+        {
+            errorHandler->push(SquirrelSocketException("Failed to connect to socket."));
+
+            return;
+        }
+
+        while (serviceSocket->isAlive())
+        {
+            const Message* message = serviceSocket->receive();
+
+            if (message)
+            {
+                if (const std::optional<std::string> type = message->data->getProperty("type")->asString())
+                {
+                    if (type == "response")
+                    {
+                        const std::optional<std::string> name = message->data->getProperty("name")->asString();
+                        const std::optional<std::string> ip = message->data->getProperty("ip")->asString();
+
+                        if (name && ip)
+                        {
+                            handleResponse(name.value(), ip.value());
+                        }
+
+                        else
+                        {
+                            errorHandler->push(SquirrelSocketException("Invalid message format."));
+                        }
+                    }
+
+                    else
+                    {
+                        errorHandler->push(SquirrelSocketException("Unknown message type \"" + type.value() + "\"."));
+                    }
+                }
+
+                else
+                {
+                    errorHandler->push(SquirrelSocketException("Invalid message format."));
+                }
+            }
+
+            else
+            {
+                errorHandler->push(SquirrelSocketException("Failed to receive message from service."));
             }
         }
     });
@@ -118,7 +263,7 @@ void NetworkManager::beginConnect(const std::string ip)
         { "ip", new JSONString(address) }
     }));
 
-    if (!udpSocket->socketSend(connectMessage, ip, UDP_PORT))
+    if (!broadcastSocket->socketSend(connectMessage, ip, BROADCAST_PORT))
     {
         errorHandler->push(SquirrelSocketException("Failed to send connection request."));
 
@@ -128,6 +273,19 @@ void NetworkManager::beginConnect(const std::string ip)
 
 void NetworkManager::beginTransfer(const std::filesystem::path path, const std::string ip)
 {
+    const Message* connect = new Message(new JSONObject(
+    {
+        { "type", new JSONString("connect") },
+        { "ip", new JSONString(ip) }
+    }));
+
+    if (!serviceSocket->socketSend(connect))
+    {
+        errorHandler->push(SquirrelSocketException("Failed to send message to service."));
+
+        return;
+    }
+
     std::ifstream file(path, std::ios_base::binary);
 
     if (!file.is_open())
@@ -160,9 +318,9 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
         { "data", new JSONString(data) }
     }));
 
-    tcpSocket = newTCPSocket();
+    transferSocket = newTCPSocket();
 
-    if (!tcpSocket->create())
+    if (!transferSocket->create())
     {
         errorHandler->push(SquirrelSocketException("Failed to create socket."));
 
@@ -171,21 +329,21 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
     transferThread = std::thread([=]()
     {
-        if (!tcpSocket->socketConnect(ip, TCP_PORT))
+        if (!transferSocket->socketConnect(ip, TRANSFER_PORT))
         {
             errorHandler->push(SquirrelSocketException("Failed to connect to socket."));
 
             return;
         }
 
-        if (!tcpSocket->socketSend(message))
+        if (!transferSocket->socketSend(message))
         {
             errorHandler->push(SquirrelSocketException("Failed to transfer file."));
 
             return;
         }
 
-        if (!tcpSocket->destroy())
+        if (!transferSocket->destroy())
         {
             errorHandler->push(SquirrelSocketException("Failed to destroy socket."));
         }
@@ -199,23 +357,23 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
         transferThread.join();
     }
 
-    tcpSocket = newTCPSocket();
+    transferSocket = newTCPSocket();
 
-    if (!tcpSocket->create())
+    if (!transferSocket->create())
     {
         errorHandler->push(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
 
-    if (!tcpSocket->socketBind(address, TCP_PORT))
+    if (!transferSocket->socketBind(address, TRANSFER_PORT))
     {
         errorHandler->push(SquirrelSocketException("Failed to bind socket."));
 
         return;
     }
 
-    if (!tcpSocket->socketListen())
+    if (!transferSocket->socketListen())
     {
         errorHandler->push(SquirrelSocketException("Failed to listen on socket."));
 
@@ -224,14 +382,14 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
     transferThread = std::thread([=]()
     {
-        if (!tcpSocket->socketAccept())
+        if (!transferSocket->socketAccept())
         {
             errorHandler->push(SquirrelSocketException("Failed to accept connection."));
 
             return;
         }
 
-        const Message* message = tcpSocket->receive();
+        const Message* message = transferSocket->receive();
 
         if (!message)
         {
@@ -259,7 +417,7 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
         handleReceive(fileName.value(), Base64::decode(data.value()));
 
-        if (!tcpSocket->destroy())
+        if (!transferSocket->destroy())
         {
             errorHandler->push(SquirrelSocketException("Failed to destroy socket."));
 
@@ -356,7 +514,7 @@ bool WinUDPSocket::destroy()
     return true;
 }
 
-bool WinUDPSocket::isAlive()
+bool WinUDPSocket::isAlive() const
 {
     return socketHandle != INVALID_SOCKET;
 }
@@ -428,7 +586,7 @@ bool WinTCPSocket::socketSend(const Message* message) const
 
     const std::string& str = stream.str();
 
-    *(uint64_t*)str.data() = str.size() - 8;
+    *(uint64_t*)str.data() = str.size() - 7;
 
     return send(socketHandle, str.c_str(), str.size() + 1, 0) == str.size() + 1;
 }
@@ -485,6 +643,11 @@ bool WinTCPSocket::destroy()
     socketHandle = INVALID_SOCKET;
 
     return true;
+}
+
+bool WinTCPSocket::isAlive() const
+{
+    return socketHandle != INVALID_SOCKET;
 }
 
 WinNetworkManager::WinNetworkManager(ErrorHandler* errorHandler) :
@@ -738,7 +901,7 @@ bool BSDTCPSocket::socketSend(const Message* message) const
 
     const std::string& str = stream.str();
 
-    *(uint64_t*)str.data() = str.size() - 8;
+    *(uint64_t*)str.data() = str.size() - 7;
 
     return send(socketHandle, str.c_str(), str.size() + 1, 0) == str.size() + 1;
 }
