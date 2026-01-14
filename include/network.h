@@ -160,7 +160,7 @@ struct BSDUDPSocket : public UDPSocket
     Message* receive() const override;
 
     bool destroy() override;
-    bool isAlive() override;
+    bool isAlive() const override;
 
 private:
     int socketHandle = -1;
@@ -179,6 +179,7 @@ struct BSDTCPSocket : public TCPSocket
     Message* receive() const override;
 
     bool destroy() override;
+    bool isAlive() const override;
 
 private:
     int socketHandle = -1;

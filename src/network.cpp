@@ -834,7 +834,7 @@ bool BSDUDPSocket::destroy()
     return true;
 }
 
-bool BSDUDPSocket::isAlive()
+bool BSDUDPSocket::isAlive() const
 {
     return socketHandle != -1;
 }
@@ -953,6 +953,11 @@ bool BSDTCPSocket::destroy()
     socketHandle = -1;
 
     return true;
+}
+
+bool BSDTCPSocket::isAlive() const
+{
+    return socketHandle != -1;
 }
 
 BSDNetworkManager::BSDNetworkManager(ErrorHandler* errorHandler) :
