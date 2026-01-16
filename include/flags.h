@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <string>
+#include <string.h>
 
 #include "errors.h"
 
