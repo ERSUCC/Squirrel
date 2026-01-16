@@ -14,7 +14,7 @@ NetworkManager::NetworkManager(ErrorHandler* errorHandler, const std::string nam
     }
 }
 
-void NetworkManager::beginService(const std::function<void(const std::string, const std::string&)> handleReceive)
+void NetworkManager::beginService(const std::function<void(const std::string)> handleConnect)
 {
     broadcastSocket = newUDPSocket();
 
@@ -110,7 +110,7 @@ void NetworkManager::beginService(const std::function<void(const std::string, co
             {
                 if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
                 {
-                    beginReceive(ip.value(), handleReceive);
+                    handleConnect(ip.value());
                 }
             }
         }

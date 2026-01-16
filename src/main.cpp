@@ -2,25 +2,24 @@
 #include "../include/renderer.h"
 #include "../include/safe_queue.hpp"
 #include "../include/files.h"
+#include "../include/sprocess.h"
 
 #include <functional>
 #include <iostream>
 #include <optional>
 
-int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager)
+int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager, ProcessManager* processManager)
 {
     if (argc > 0 && strncmp(argv[0], "--service", 9) == 0)
     {
-        networkManager->beginService([=](const std::string name, const std::string& data)
+        networkManager->beginService([=](const std::string ip)
         {
-            mainThreadQueue->push([=]()
+            std::vector<std::string> args = { "--receive", ip };
+
+            if (!processManager->createProcess(args))
             {
-                Renderer* renderer = new Renderer(mainThreadQueue, errorHandler, networkManager, fileManager);
-
-                renderer->setupReceive(name, data);
-
-                delete renderer;
-            });
+                errorHandler->push(SquirrelException("Failed to create process."));
+            }
         });
 
         while (true)
@@ -35,6 +34,22 @@ int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* ma
                 function.value()();
             }
         }
+    }
+
+    else if (argc > 0 && strncmp(argv[0], "--receive", 9) == 0)
+    {
+        Renderer* renderer = new Renderer(mainThreadQueue, errorHandler, networkManager, fileManager);
+
+        networkManager->beginReceive(argv[1], [=](const std::string name, const std::string& data)
+        {
+            mainThreadQueue->push([=]()
+            {
+                renderer->setupReceive(name, data);
+            });
+        });
+
+        renderer->setupMain();
+        renderer->run();
     }
 
     else
@@ -72,6 +87,8 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
 
     ErrorHandler* errorHandler = new ErrorHandler();
     NetworkManager* networkManager = new WinNetworkManager(errorHandler);
+    FileManager* fileManager = new WinFileManager();
+    ProcessManager* processManager = new WinProcessManager(errorHandler);
 
     if (wcsnlen(pCmdLine, 1) > 0)
     {
@@ -92,10 +109,10 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
             argvChar[i][length] = '\0';
         }
 
-        return init(argc, argvChar, mainThreadQueue, errorHandler, networkManager, new WinFileManager());
+        return init(argc, argvChar, mainThreadQueue, errorHandler, networkManager, fileManager, processManager);
     }
 
-    return init(0, nullptr, mainThreadQueue, errorHandler, networkManager, new WinFileManager());
+    return init(0, nullptr, mainThreadQueue, errorHandler, networkManager, fileManager, processManager);
 }
 
 #elif __APPLE__
@@ -106,8 +123,10 @@ int main(int argc, char** argv)
 
     ErrorHandler* errorHandler = new ErrorHandler();
     NetworkManager* networkManager = new BSDNetworkManager(errorHandler);
+    FileManager* fileManager = new MacFileManager();
+    ProcessManager* processManager = new MacProcessManager(errorHandler);
 
-    return init(argc - 1, argv + 1, mainThreadQueue, errorHandler, networkManager, new MacFileManager());
+    return init(argc - 1, argv + 1, mainThreadQueue, errorHandler, networkManager, fileManager, processManager);
 }
 
 #else
@@ -118,8 +137,10 @@ int main(int argc, char** argv)
 
     ErrorHandler* errorHandler = new ErrorHandler();
     NetworkManager* networkManager = new BSDNetworkManager(errorHandler);
+    FileManager* fileManager = new LinuxFileManager();
+    ProcessManager* processManager = new LinuxProcessManager(errorHandler);
 
-    return init(argc - 1, argv + 1, mainThreadQueue, errorHandler, networkManager, new LinuxFileManager());
+    return init(argc - 1, argv + 1, mainThreadQueue, errorHandler, networkManager, fileManager, processManager);
 }
 
 #endif

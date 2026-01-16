@@ -13,10 +13,11 @@ set(SQUIRREL_SOURCES include/safe_queue.hpp
                      src/json.cpp
                      src/main.cpp
                      src/network.cpp
-                     src/renderer.cpp)
+                     src/renderer.cpp
+                     src/sprocess.cpp)
 
 if(APPLE)
-    set(SQUIRREL_SOURCES ${SQUIRREL_SOURCES} src/files_mac.mm)
+    set(SQUIRREL_SOURCES ${SQUIRREL_SOURCES} src/files_mac.mm src/sprocess_mac.mm)
 endif()
 
 add_executable(squirrel ${SQUIRREL_SOURCES})
