@@ -903,7 +903,7 @@ bool BSDTCPSocket::socketSend(const Message* message) const
 
     *(uint64_t*)str.data() = str.size() - 7;
 
-    return send(socketHandle, str.c_str(), str.size() + 1, 0) == str.size() + 1;
+    return send(socketHandle, str.c_str(), str.size() + 1, MSG_NOSIGNAL) == str.size() + 1;
 }
 
 Message* BSDTCPSocket::receive() const
