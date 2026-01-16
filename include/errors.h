@@ -16,6 +16,11 @@ private:
 
 };
 
+struct SquirrelArgumentException : public SquirrelException
+{
+    SquirrelArgumentException(const std::string message);
+};
+
 struct SquirrelSocketException : public SquirrelException
 {
     SquirrelSocketException(const std::string message);

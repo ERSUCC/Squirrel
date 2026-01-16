@@ -9,6 +9,7 @@ set(SQUIRREL_SOURCES include/safe_queue.hpp
                      src/base64.cpp
                      src/errors.cpp
                      src/files.cpp
+                     src/flags.cpp
                      src/gui.cpp
                      src/json.cpp
                      src/main.cpp
@@ -21,6 +22,12 @@ if(APPLE)
 endif()
 
 add_executable(squirrel ${SQUIRREL_SOURCES})
+
+option(SQUIRREL_RELEASE "Release configuration" OFF)
+
+if(SQUIRREL_RELEASE)
+    target_compile_definitions(squirrel PUBLIC SQUIRREL_RELEASE)
+endif()
 
 target_include_directories(squirrel PRIVATE include)
 

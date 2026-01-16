@@ -1,3 +1,5 @@
+#include "../include/errors.h"
+#include "../include/flags.h"
 #include "../include/network.h"
 #include "../include/renderer.h"
 #include "../include/safe_queue.hpp"
@@ -7,10 +9,23 @@
 #include <functional>
 #include <iostream>
 #include <optional>
+#include <string>
 
 int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager, ProcessManager* processManager)
 {
-    if (argc > 0 && strncmp(argv[0], "--service", 9) == 0)
+    const Flags* flags = Flags::parse(argc, argv, errorHandler);
+
+    if (!flags)
+    {
+        while (const std::optional<SquirrelException> error = errorHandler->pop())
+        {
+            std::cout << error.value().what() << "\n";
+        }
+
+        return 1;
+    }
+
+    if (flags->type == LaunchType::Service)
     {
         networkManager->beginService([=](const std::string ip)
         {
@@ -36,11 +51,11 @@ int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* ma
         }
     }
 
-    else if (argc > 0 && strncmp(argv[0], "--receive", 9) == 0)
+    else if (flags->type == LaunchType::Receive)
     {
         Renderer* renderer = new Renderer(mainThreadQueue, errorHandler, networkManager, fileManager);
 
-        networkManager->beginReceive(argv[1], [=](const std::string name, const std::string& data)
+        networkManager->beginReceive(flags->ip, [=](const std::string name, const std::string& data)
         {
             mainThreadQueue->push([=]()
             {
@@ -56,18 +71,7 @@ int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* ma
     {
         Renderer* renderer = new Renderer(mainThreadQueue, errorHandler, networkManager, fileManager);
 
-        if (argc != 0)
-        {
-            if (!std::filesystem::exists(argv[0]))
-            {
-                std::cout << "Specified file does not exist.\n";
-
-                return 1;
-            }
-
-            renderer->setPath(argv[0]);
-        }
-
+        renderer->setPath(flags->path);
         renderer->setupMain();
         renderer->run();
     }

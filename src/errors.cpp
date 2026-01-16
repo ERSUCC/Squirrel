@@ -8,6 +8,9 @@ const char* SquirrelException::what() const noexcept
     return message.c_str();
 }
 
+SquirrelArgumentException::SquirrelArgumentException(const std::string message) :
+    SquirrelException(message) {}
+
 SquirrelSocketException::SquirrelSocketException(const std::string message) :
     SquirrelException(message) {}
 

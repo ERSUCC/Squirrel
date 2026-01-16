@@ -56,14 +56,18 @@ std::filesystem::path WinFileManager::getSavePath(const std::string name) const
 
 std::filesystem::path WinFileManager::getResourcePath(const std::string name) const
 {
+    #ifdef SQUIRREL_RELEASE
+
     char path[MAX_PATH + 1];
 
-    if (GetModuleFileName(nullptr, path, MAX_PATH) == 0)
+    if (GetModuleFileName(nullptr, path, MAX_PATH))
     {
-        return std::filesystem::path("resources") / name;
+        return std::filesystem::path(std::filesystem::path(path).parent_path() / "resources" / name);
     }
 
-    return std::filesystem::path(std::filesystem::path(path).parent_path() / "resources" / name);
+    #endif
+
+    return std::filesystem::path("resources") / name;
 }
 
 #elif __linux__
@@ -92,7 +96,15 @@ std::filesystem::path LinuxFileManager::getSavePath(const std::string name) cons
 
 std::filesystem::path LinuxFileManager::getResourcePath(const std::string name) const
 {
+    #ifdef SQUIRREL_RELEASE
+
     return std::filesystem::canonical("/proc/self/exe").parent_path() / "resources" / name;
+
+    #else
+
+    return std::filesystem::path("resources") / name;
+
+    #endif
 }
 
 #endif

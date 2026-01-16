@@ -23,6 +23,8 @@ std::filesystem::path MacFileManager::getSavePath(const std::string name) const
 
 std::filesystem::path MacFileManager::getResourcePath(const std::string name) const
 {
+    #ifdef SQUIRREL_RELEASE
+
     int slash = name.size() - 1;
 
     while (slash > 0 && name[slash] != '/')
@@ -59,5 +61,7 @@ std::filesystem::path MacFileManager::getResourcePath(const std::string name) co
         return std::filesystem::path([ path cStringUsingEncoding: NSUTF8StringEncoding ]);
     }
 
-    return std::filesystem::path("resources/" + name);
+    #endif
+
+    return std::filesystem::path("resources") / name;
 }
