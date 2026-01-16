@@ -3,7 +3,7 @@
 Target::Target(const GUIObject* object, const std::string name, const std::string ip) :
     object(object), name(name), ip(ip) {}
 
-Renderer::Renderer(ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager) :
+Renderer::Renderer(MainThreadQueue* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager) :
     mainThreadQueue(mainThreadQueue), errorHandler(errorHandler), networkManager(networkManager), fileManager(fileManager)
 {
     SDL_Init(SDL_INIT_VIDEO);
@@ -61,7 +61,7 @@ void Renderer::setupReceive(const std::string name, const std::string& data)
 
     if (!file.is_open())
     {
-        errorHandler->push(SquirrelFileException("Failed to save file."));
+        errorHandler->handle(SquirrelFileException("Failed to save file."));
 
         return;
     }
@@ -81,11 +81,6 @@ void Renderer::run()
 
     while (running)
     {
-        while (std::optional<SquirrelException> error = errorHandler->pop())
-        {
-            std::cout << error.value().what() << "\n";
-        }
-
         while (SDL_PollEvent(&event))
         {
             switch (event.type)
@@ -115,10 +110,7 @@ void Renderer::run()
             }
         }
 
-        while (std::optional<std::function<void()>> operation = mainThreadQueue->pop())
-        {
-            operation.value()();
-        }
+        mainThreadQueue->execute(false);
 
         if ((clock.now() - lastFrame).count() >= 1e9 / 60)
         {

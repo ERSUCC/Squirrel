@@ -10,14 +10,14 @@ Flags* Flags::parse(const int argc, char** argv, ErrorHandler* errorHandler)
         {
             if (flags->type == LaunchType::Service)
             {
-                errorHandler->push(SquirrelArgumentException("Argument \"--service\" specified more than once."));
+                errorHandler->handle(SquirrelArgumentException("Argument \"--service\" specified more than once."));
 
                 return nullptr;
             }
 
             if (flags->type == LaunchType::Receive)
             {
-                errorHandler->push(SquirrelArgumentException("Argument \"--service\" is not compatible with argument \"--receive\"."));
+                errorHandler->handle(SquirrelArgumentException("Argument \"--service\" is not compatible with argument \"--receive\"."));
 
                 return nullptr;
             }
@@ -29,14 +29,14 @@ Flags* Flags::parse(const int argc, char** argv, ErrorHandler* errorHandler)
         {
             if (flags->type == LaunchType::Service)
             {
-                errorHandler->push(SquirrelArgumentException("Argument \"--receive\" is not compatible with argument \"--service\"."));
+                errorHandler->handle(SquirrelArgumentException("Argument \"--receive\" is not compatible with argument \"--service\"."));
 
                 return nullptr;
             }
 
             if (flags->type == LaunchType::Receive)
             {
-                errorHandler->push(SquirrelArgumentException("Argument \"--receive\" specified more than once."));
+                errorHandler->handle(SquirrelArgumentException("Argument \"--receive\" specified more than once."));
 
                 return nullptr;
             }
@@ -46,7 +46,7 @@ Flags* Flags::parse(const int argc, char** argv, ErrorHandler* errorHandler)
 
         else if (strncmp(argv[i], "--", 2) == 0)
         {
-            errorHandler->push(SquirrelArgumentException("Unknown argument \"" + std::string(argv[i]) + "\"."));
+            errorHandler->handle(SquirrelArgumentException("Unknown argument \"" + std::string(argv[i]) + "\"."));
 
             return nullptr;
         }
@@ -55,7 +55,7 @@ Flags* Flags::parse(const int argc, char** argv, ErrorHandler* errorHandler)
         {
             if (flags->type == LaunchType::Service)
             {
-                errorHandler->push(SquirrelArgumentException("Launch type \"--service\" does not expect any unnamed arguments."));
+                errorHandler->handle(SquirrelArgumentException("Launch type \"--service\" does not expect any unnamed arguments."));
 
                 return nullptr;
             }
@@ -73,7 +73,7 @@ Flags* Flags::parse(const int argc, char** argv, ErrorHandler* errorHandler)
 
                     if (!std::filesystem::exists(flags->path))
                     {
-                        errorHandler->push(SquirrelArgumentException("Specified file \"" + flags->path + "\" does not exist."));
+                        errorHandler->handle(SquirrelArgumentException("Specified file \"" + flags->path + "\" does not exist."));
 
                         return nullptr;
                     }
@@ -81,7 +81,7 @@ Flags* Flags::parse(const int argc, char** argv, ErrorHandler* errorHandler)
 
                 else
                 {
-                    errorHandler->push(SquirrelArgumentException("Too many file arguments specified."));
+                    errorHandler->handle(SquirrelArgumentException("Too many file arguments specified."));
 
                     return nullptr;
                 }

@@ -5,8 +5,7 @@ project(squirrel)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-set(SQUIRREL_SOURCES include/safe_queue.hpp
-                     src/base64.cpp
+set(SQUIRREL_SOURCES src/base64.cpp
                      src/errors.cpp
                      src/files.cpp
                      src/flags.cpp
@@ -15,7 +14,8 @@ set(SQUIRREL_SOURCES include/safe_queue.hpp
                      src/main.cpp
                      src/network.cpp
                      src/renderer.cpp
-                     src/sprocess.cpp)
+                     src/sprocess.cpp
+                     src/thread_queue.cpp)
 
 if(APPLE)
     set(SQUIRREL_SOURCES ${SQUIRREL_SOURCES} src/files_mac.mm src/sprocess_mac.mm)

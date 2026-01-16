@@ -5,12 +5,12 @@ NetworkManager::NetworkManager(ErrorHandler* errorHandler, const std::string nam
 {
     if (name.empty())
     {
-        errorHandler->push(SquirrelException("Failed to get computer name."));
+        errorHandler->handle(SquirrelException("Failed to get computer name."));
     }
 
     if (address.empty())
     {
-        errorHandler->push(SquirrelSocketException("Failed to find a valid network interface."));
+        errorHandler->handle(SquirrelSocketException("Failed to find a valid network interface."));
     }
 }
 
@@ -20,14 +20,14 @@ void NetworkManager::beginService(const std::function<void(const std::string)> h
 
     if (!broadcastSocket->create(address))
     {
-        errorHandler->push(SquirrelSocketException("Failed to create socket."));
+        errorHandler->handle(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
 
     if (!broadcastSocket->socketBind("0.0.0.0", BROADCAST_PORT))
     {
-        errorHandler->push(SquirrelSocketException("Failed to bind socket."));
+        errorHandler->handle(SquirrelSocketException("Failed to bind socket."));
 
         return;
     }
@@ -50,7 +50,7 @@ void NetworkManager::beginService(const std::function<void(const std::string)> h
 
                 if (!broadcastSocket->socketSend(broadcastMessage, "255.255.255.255", BROADCAST_PORT))
                 {
-                    errorHandler->push(SquirrelSocketException("Failed to broadcast message."));
+                    errorHandler->handle(SquirrelSocketException("Failed to broadcast message."));
 
                     return;
                 }
@@ -99,7 +99,7 @@ void NetworkManager::beginService(const std::function<void(const std::string)> h
 
                     if (!broadcastSocket->socketSend(response, ip.value(), BROADCAST_PORT))
                     {
-                        errorHandler->push(SquirrelSocketException("Failed to respond to broadcast."));
+                        errorHandler->handle(SquirrelSocketException("Failed to respond to broadcast."));
 
                         return;
                     }
@@ -120,21 +120,21 @@ void NetworkManager::beginService(const std::function<void(const std::string)> h
 
     if (!serviceSocket->create())
     {
-        errorHandler->push(SquirrelSocketException("Failed to create socket."));
+        errorHandler->handle(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
 
     if (!serviceSocket->socketBind(address, SERVICE_PORT))
     {
-        errorHandler->push(SquirrelSocketException("Failed to bind socket."));
+        errorHandler->handle(SquirrelSocketException("Failed to bind socket."));
 
         return;
     }
 
     if (!serviceSocket->socketListen())
     {
-        errorHandler->push(SquirrelSocketException("Failed to listen on socket."));
+        errorHandler->handle(SquirrelSocketException("Failed to listen on socket."));
 
         return;
     }
@@ -145,7 +145,7 @@ void NetworkManager::beginService(const std::function<void(const std::string)> h
         {
             if (!serviceSocket->socketAccept())
             {
-                errorHandler->push(SquirrelSocketException("Failed to accept connection."));
+                errorHandler->handle(SquirrelSocketException("Failed to accept connection."));
 
                 return;
             }
@@ -156,7 +156,7 @@ void NetworkManager::beginService(const std::function<void(const std::string)> h
 
                 if (!message)
                 {
-                    errorHandler->push(SquirrelSocketException("Failed to receive message from client."));
+                    errorHandler->handle(SquirrelSocketException("Failed to receive message from client."));
 
                     return;
                 }
@@ -172,19 +172,19 @@ void NetworkManager::beginService(const std::function<void(const std::string)> h
 
                         else
                         {
-                            errorHandler->push(SquirrelSocketException("Invalid message format."));
+                            errorHandler->handle(SquirrelSocketException("Invalid message format."));
                         }
                     }
 
                     else
                     {
-                        errorHandler->push(SquirrelSocketException("Unknown message type \"" + type.value() + "\"."));
+                        errorHandler->handle(SquirrelSocketException("Unknown message type \"" + type.value() + "\"."));
                     }
                 }
 
                 else
                 {
-                    errorHandler->push(SquirrelSocketException("Invalid message format."));
+                    errorHandler->handle(SquirrelSocketException("Invalid message format."));
                 }
             }
         }
@@ -197,7 +197,7 @@ void NetworkManager::beginClient(const std::function<void(const std::string, con
 
     if (!serviceSocket->create())
     {
-        errorHandler->push(SquirrelSocketException("Failed to create socket."));
+        errorHandler->handle(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
@@ -206,7 +206,7 @@ void NetworkManager::beginClient(const std::function<void(const std::string, con
     {
         if (!serviceSocket->socketConnect(address, SERVICE_PORT))
         {
-            errorHandler->push(SquirrelSocketException("Failed to connect to socket."));
+            errorHandler->handle(SquirrelSocketException("Failed to connect to socket."));
 
             return;
         }
@@ -231,25 +231,25 @@ void NetworkManager::beginClient(const std::function<void(const std::string, con
 
                         else
                         {
-                            errorHandler->push(SquirrelSocketException("Invalid message format."));
+                            errorHandler->handle(SquirrelSocketException("Invalid message format."));
                         }
                     }
 
                     else
                     {
-                        errorHandler->push(SquirrelSocketException("Unknown message type \"" + type.value() + "\"."));
+                        errorHandler->handle(SquirrelSocketException("Unknown message type \"" + type.value() + "\"."));
                     }
                 }
 
                 else
                 {
-                    errorHandler->push(SquirrelSocketException("Invalid message format."));
+                    errorHandler->handle(SquirrelSocketException("Invalid message format."));
                 }
             }
 
             else
             {
-                errorHandler->push(SquirrelSocketException("Failed to receive message from service."));
+                errorHandler->handle(SquirrelSocketException("Failed to receive message from service."));
             }
         }
     });
@@ -265,7 +265,7 @@ void NetworkManager::beginConnect(const std::string ip)
 
     if (!broadcastSocket->socketSend(connectMessage, ip, BROADCAST_PORT))
     {
-        errorHandler->push(SquirrelSocketException("Failed to send connection request."));
+        errorHandler->handle(SquirrelSocketException("Failed to send connection request."));
 
         return;
     }
@@ -281,7 +281,7 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
     if (!serviceSocket->socketSend(connect))
     {
-        errorHandler->push(SquirrelSocketException("Failed to send message to service."));
+        errorHandler->handle(SquirrelSocketException("Failed to send message to service."));
 
         return;
     }
@@ -290,7 +290,7 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
     if (!file.is_open())
     {
-        errorHandler->push(SquirrelFileException("Failed to open specified file."));
+        errorHandler->handle(SquirrelFileException("Failed to open specified file."));
 
         return;
     }
@@ -322,7 +322,7 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
 
     if (!transferSocket->create())
     {
-        errorHandler->push(SquirrelSocketException("Failed to create socket."));
+        errorHandler->handle(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
@@ -331,21 +331,21 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
     {
         if (!transferSocket->socketConnect(ip, TRANSFER_PORT))
         {
-            errorHandler->push(SquirrelSocketException("Failed to connect to socket."));
+            errorHandler->handle(SquirrelSocketException("Failed to connect to socket."));
 
             return;
         }
 
         if (!transferSocket->socketSend(message))
         {
-            errorHandler->push(SquirrelSocketException("Failed to transfer file."));
+            errorHandler->handle(SquirrelSocketException("Failed to transfer file."));
 
             return;
         }
 
         if (!transferSocket->destroy())
         {
-            errorHandler->push(SquirrelSocketException("Failed to destroy socket."));
+            errorHandler->handle(SquirrelSocketException("Failed to destroy socket."));
         }
     });
 }
@@ -361,21 +361,21 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
     if (!transferSocket->create())
     {
-        errorHandler->push(SquirrelSocketException("Failed to create socket."));
+        errorHandler->handle(SquirrelSocketException("Failed to create socket."));
 
         return;
     }
 
     if (!transferSocket->socketBind(address, TRANSFER_PORT))
     {
-        errorHandler->push(SquirrelSocketException("Failed to bind socket."));
+        errorHandler->handle(SquirrelSocketException("Failed to bind socket."));
 
         return;
     }
 
     if (!transferSocket->socketListen())
     {
-        errorHandler->push(SquirrelSocketException("Failed to listen on socket."));
+        errorHandler->handle(SquirrelSocketException("Failed to listen on socket."));
 
         return;
     }
@@ -384,7 +384,7 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
     {
         if (!transferSocket->socketAccept())
         {
-            errorHandler->push(SquirrelSocketException("Failed to accept connection."));
+            errorHandler->handle(SquirrelSocketException("Failed to accept connection."));
 
             return;
         }
@@ -393,14 +393,14 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
         if (!message)
         {
-            errorHandler->push(SquirrelSocketException("Failed to receive file."));
+            errorHandler->handle(SquirrelSocketException("Failed to receive file."));
 
             return;
         }
 
         if (message->data->getProperty("ip")->asString() != ip)
         {
-            errorHandler->push(SquirrelSocketException("Invalid connection."));
+            errorHandler->handle(SquirrelSocketException("Invalid connection."));
 
             return;
         }
@@ -410,7 +410,7 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
         if (!fileName || !data)
         {
-            errorHandler->push(SquirrelSocketException("Received incorrect message format."));
+            errorHandler->handle(SquirrelSocketException("Received incorrect message format."));
 
             return;
         }
@@ -419,7 +419,7 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
 
         if (!transferSocket->destroy())
         {
-            errorHandler->push(SquirrelSocketException("Failed to destroy socket."));
+            errorHandler->handle(SquirrelSocketException("Failed to destroy socket."));
 
             return;
         }
@@ -657,7 +657,7 @@ WinNetworkManager::WinNetworkManager(ErrorHandler* errorHandler) :
 
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
-        errorHandler->push(SquirrelSocketException("Failed to initialize WinSock."));
+        errorHandler->handle(SquirrelSocketException("Failed to initialize WinSock."));
     }
 }
 

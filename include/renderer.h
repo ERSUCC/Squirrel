@@ -18,7 +18,7 @@
 #include "gui.h"
 #include "network.h"
 #include "files.h"
-#include "safe_queue.hpp"
+#include "thread_queue.h"
 
 struct Target
 {
@@ -32,7 +32,7 @@ struct Target
 
 struct Renderer
 {
-    Renderer(ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager);
+    Renderer(MainThreadQueue* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager);
     ~Renderer();
 
     void setPath(const std::string path);
@@ -63,7 +63,7 @@ private:
     std::chrono::high_resolution_clock clock;
     std::chrono::time_point<std::chrono::high_resolution_clock> lastFrame;
 
-    ThreadSafeQueue<std::function<void()>>* mainThreadQueue;
+    MainThreadQueue* mainThreadQueue;
 
     ErrorHandler* errorHandler;
     NetworkManager* networkManager;

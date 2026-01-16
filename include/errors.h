@@ -1,9 +1,11 @@
 #pragma once
 
 #include <exception>
+#include <functional>
+#include <iostream>
 #include <string>
 
-#include "safe_queue.hpp"
+#include "thread_queue.h"
 
 struct SquirrelException : public std::exception
 {
@@ -31,4 +33,13 @@ struct SquirrelFileException : public SquirrelException
     SquirrelFileException(const std::string message);
 };
 
-struct ErrorHandler : public ThreadSafeQueue<SquirrelException> {};
+struct ErrorHandler
+{
+    ErrorHandler(MainThreadQueue* mainThreadQueue);
+
+    void handle(const SquirrelException& exception);
+
+private:
+    MainThreadQueue* mainThreadQueue;
+
+};

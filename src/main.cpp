@@ -2,7 +2,7 @@
 #include "../include/flags.h"
 #include "../include/network.h"
 #include "../include/renderer.h"
-#include "../include/safe_queue.hpp"
+#include "../include/thread_queue.h"
 #include "../include/files.h"
 #include "../include/sprocess.h"
 
@@ -11,16 +11,13 @@
 #include <optional>
 #include <string>
 
-int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager, ProcessManager* processManager)
+int init(const int argc, char** argv, MainThreadQueue* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager, ProcessManager* processManager)
 {
     const Flags* flags = Flags::parse(argc, argv, errorHandler);
 
     if (!flags)
     {
-        while (const std::optional<SquirrelException> error = errorHandler->pop())
-        {
-            std::cout << error.value().what() << "\n";
-        }
+        mainThreadQueue->execute(true);
 
         return 1;
     }
@@ -33,21 +30,13 @@ int init(const int argc, char** argv, ThreadSafeQueue<std::function<void()>>* ma
 
             if (!processManager->createProcess(args))
             {
-                errorHandler->push(SquirrelException("Failed to create process."));
+                errorHandler->handle(SquirrelException("Failed to create process."));
             }
         });
 
         while (true)
         {
-            while (std::optional<SquirrelException> error = errorHandler->pop())
-            {
-                std::cout << error.value().what() << "\n";
-            }
-
-            if (const std::optional<std::function<void()>> function = mainThreadQueue->pop())
-            {
-                function.value()();
-            }
+            mainThreadQueue->execute(true);
         }
     }
 
@@ -87,9 +76,9 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
 
     freopen("CONOUT$", "w", stdout); // this too
 
-    ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
+    MainThreadQueue* mainThreadQueue = new MainThreadQueue();
 
-    ErrorHandler* errorHandler = new ErrorHandler();
+    ErrorHandler* errorHandler = new ErrorHandler(mainThreadQueue);
     NetworkManager* networkManager = new WinNetworkManager(errorHandler);
     FileManager* fileManager = new WinFileManager();
     ProcessManager* processManager = new WinProcessManager(errorHandler);
@@ -123,9 +112,9 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
 
 int main(int argc, char** argv)
 {
-    ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
+    MainThreadQueue* mainThreadQueue = new MainThreadQueue();
 
-    ErrorHandler* errorHandler = new ErrorHandler();
+    ErrorHandler* errorHandler = new ErrorHandler(mainThreadQueue);
     NetworkManager* networkManager = new BSDNetworkManager(errorHandler);
     FileManager* fileManager = new MacFileManager();
     ProcessManager* processManager = new MacProcessManager(errorHandler);
@@ -137,9 +126,9 @@ int main(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-    ThreadSafeQueue<std::function<void()>>* mainThreadQueue = new ThreadSafeQueue<std::function<void()>>();
+    MainThreadQueue* mainThreadQueue = new MainThreadQueue();
 
-    ErrorHandler* errorHandler = new ErrorHandler();
+    ErrorHandler* errorHandler = new ErrorHandler(mainThreadQueue);
     NetworkManager* networkManager = new BSDNetworkManager(errorHandler);
     FileManager* fileManager = new LinuxFileManager();
     ProcessManager* processManager = new LinuxProcessManager(errorHandler);
