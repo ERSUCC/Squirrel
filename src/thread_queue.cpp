@@ -1,12 +1,23 @@
 #include "../include/thread_queue.h"
 
+MainThreadQueue::MainThreadQueue() :
+    mainThread(std::this_thread::get_id()) {}
+
 void MainThreadQueue::push(std::function<void()> function)
 {
-    lock.lock();
+    if (std::this_thread::get_id() == mainThread)
+    {
+        functions.push(function);
+    }
 
-    functions.push(function);
+    else
+    {
+        lock.lock();
 
-    lock.unlock();
+        functions.push(function);
+
+        lock.unlock();
+    }
 
     signal.notify_all();
 }
