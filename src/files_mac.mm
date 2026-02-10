@@ -1,24 +1,84 @@
 #include "../include/files.h"
 
+#import <AppKit/NSOpenPanel.h>
 #import <AppKit/NSSavePanel.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSURL.h>
 
-std::filesystem::path MacFileManager::getSavePath(const std::string name) const
+void MacFileManager::getSelectPath(SDL_Window* parent, SelectHandler complete) const
 {
-    NSSavePanel* panel = [ NSSavePanel new ];
+    SDL_PropertiesID properties = SDL_GetWindowProperties(parent);
+
+    if (!properties)
+    {
+        complete("");
+
+        return;
+    }
+
+    NSWindow* window = (NSWindow*)SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr);
+
+    if (!window)
+    {
+        complete("");
+
+        return;
+    }
+
+    NSOpenPanel* panel = [ NSOpenPanel openPanel ];
+
+    [ panel setTitle: @"Select File" ];
+    [ panel beginSheetModalForWindow: window completionHandler: ^(NSModalResponse response)
+    {
+        if (response == NSModalResponseOK)
+        {
+            complete([ [ panel URL ] fileSystemRepresentation ]);
+        }
+
+        else
+        {
+            complete("");
+        }
+    } ];
+}
+
+void MacFileManager::getSavePath(SDL_Window* parent, const std::string name, SelectHandler complete) const
+{
+    SDL_PropertiesID properties = SDL_GetWindowProperties(parent);
+
+    if (!properties)
+    {
+        complete("");
+
+        return;
+    }
+
+    NSWindow* window = (NSWindow*)SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr);
+
+    if (!window)
+    {
+        complete("");
+
+        return;
+    }
+
+    NSSavePanel* panel = [ NSSavePanel savePanel ];
 
     [ panel setTitle: @"Save File" ];
     [ panel setNameFieldStringValue: [ NSString stringWithUTF8String: name.c_str() ] ];
 
-    NSModalResponse response = [ panel runModal ];
-
-    if (response == NSModalResponseOK)
+    [ panel beginSheetModalForWindow: window completionHandler: ^(NSModalResponse response)
     {
-        return std::string([ [ panel URL ] fileSystemRepresentation ]);
-    }
+        if (response == NSModalResponseOK)
+        {
+            complete([ [ panel URL ] fileSystemRepresentation ]);
+        }
 
-    return "";
+        else
+        {
+            complete("");
+        }
+    } ];
 }
 
 std::filesystem::path MacFileManager::getResourcePath(const std::string name) const

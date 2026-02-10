@@ -1,11 +1,18 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
 #include <string>
+
+#include <SDL.h>
 
 struct FileManager
 {
-    virtual std::filesystem::path getSavePath(const std::string name) const = 0;
+    typedef const std::function<void(const std::filesystem::path)> SelectHandler;
+
+    virtual void getSelectPath(SDL_Window* parent, SelectHandler complete) const = 0;
+    virtual void getSavePath(SDL_Window* parent, const std::string name, SelectHandler complete) const = 0;
+
     virtual std::filesystem::path getResourcePath(const std::string name) const = 0;
 };
 
@@ -17,7 +24,9 @@ struct FileManager
 
 struct WinFileManager : public FileManager
 {
-    std::filesystem::path getSavePath(const std::string name) const override;
+    void getSelectPath(SDL_Window* parent, SelectHandler complete) const override;
+    void getSavePath(SDL_Window* parent, const std::string name, SelectHandler complete) const override;
+
     std::filesystem::path getResourcePath(const std::string name) const override;
 };
 
@@ -25,7 +34,9 @@ struct WinFileManager : public FileManager
 
 struct MacFileManager : public FileManager
 {
-    std::filesystem::path getSavePath(const std::string name) const override;
+    void getSelectPath(SDL_Window* parent, SelectHandler complete) const override;
+    void getSavePath(SDL_Window* parent, const std::string name, SelectHandler complete) const override;
+
     std::filesystem::path getResourcePath(const std::string name) const override;
 };
 
@@ -36,7 +47,9 @@ struct MacFileManager : public FileManager
 
 struct LinuxFileManager : public FileManager
 {
-    std::filesystem::path getSavePath(const std::string name) const override;
+    void getSelectPath(SDL_Window* parent, SelectHandler complete) const override;
+    void getSavePath(SDL_Window* parent, const std::string name, SelectHandler complete) const override;
+
     std::filesystem::path getResourcePath(const std::string name) const override;
 };
 

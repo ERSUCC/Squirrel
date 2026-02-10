@@ -55,20 +55,21 @@ void Renderer::setupMain()
 
 void Renderer::setupReceive(const std::string name, const std::string& data)
 {
-    const std::filesystem::path path = fileManager->getSavePath(name);
-
-    std::ofstream file(path, std::ios::binary);
-
-    if (!file.is_open())
+    fileManager->getSavePath(window, name, [=](const std::filesystem::path selected)
     {
-        errorHandler->handle(SquirrelFileException("Failed to save file."));
+        std::ofstream file(selected, std::ios::binary);
 
-        return;
-    }
+        if (!file.is_open())
+        {
+            errorHandler->handle(SquirrelFileException("Failed to save file."));
 
-    file << data;
+            return;
+        }
 
-    file.close();
+        file << data;
+
+        file.close();
+    });
 }
 
 void Renderer::run()
@@ -186,12 +187,19 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
         {
             if (path.empty())
             {
-                // choose file
-
-                return;
+                fileManager->getSelectPath(window, [=](const std::filesystem::path selected)
+                {
+                    if (std::filesystem::exists(selected))
+                    {
+                        networkManager->beginTransfer(selected, ip);
+                    }
+                });
             }
 
-            networkManager->beginTransfer(path, ip);
+            else
+            {
+                networkManager->beginTransfer(path, ip);
+            }
         });
 
         layout->addObject(sendButton, Sizing::Fixed, Sizing::Fixed);
