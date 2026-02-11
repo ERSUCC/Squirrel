@@ -26,7 +26,7 @@ LayoutObject::LayoutObject(GUIObject* object, const Sizing horizontalSizing, con
 Layout::Layout(SDL_Renderer* renderer) :
     GUIObject(renderer) {}
 
-void Layout::render() const
+void Layout::render()
 {
     if (backgroundColor.a != 0)
     {
@@ -325,8 +325,13 @@ void StackLayout::setSpacing(const int spacing)
 Label::Label(SDL_Renderer* renderer) :
     GUIObject(renderer) {}
 
-void Label::render() const
+void Label::render()
 {
+    if (!textTexture)
+    {
+        renderTexture();
+    }
+
     SDL_SetRenderDrawColor(renderer, textColor.r, textColor.g, textColor.b, textColor.a);
     SDL_RenderTexture(renderer, textTexture, nullptr, &rect);
 }
@@ -334,22 +339,16 @@ void Label::render() const
 void Label::setFont(TTF_Font* font)
 {
     this->font = font;
-
-    renderTexture();
 }
 
 void Label::setText(const std::string text)
 {
     this->text = text;
-
-    renderTexture();
 }
 
 void Label::setTextColor(const SDL_Color color)
 {
     textColor = color;
-
-    renderTexture();
 }
 
 void Label::renderTexture()
@@ -379,7 +378,7 @@ void Label::renderTexture()
 Button::Button(SDL_Renderer* renderer) :
     GUIObject(renderer), label(new Label(renderer)) {}
 
-void Button::render() const
+void Button::render()
 {
     if (isHover)
     {

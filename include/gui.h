@@ -11,7 +11,7 @@ struct GUIObject
 {
     GUIObject(SDL_Renderer* renderer);
 
-    virtual void render() const = 0;
+    virtual void render() = 0;
 
     void setLocation(const int x, const int y);
     void setSize(const int width, const int height);
@@ -48,7 +48,7 @@ struct Layout : public GUIObject
 {
     Layout(SDL_Renderer* renderer);
 
-    void render() const override;
+    void render() override;
 
     void hover(const int x, const int y) override;
     void click(const int x, const int y) override;
@@ -108,7 +108,7 @@ struct Label : public GUIObject
 {
     Label(SDL_Renderer* renderer);
 
-    void render() const override;
+    void render() override;
 
     void setFont(TTF_Font* font);
 
@@ -133,7 +133,7 @@ struct Button : public GUIObject
 {
     Button(SDL_Renderer* renderer);
 
-    void render() const override;
+    void render() override;
 
     void layout() override;
 
