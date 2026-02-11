@@ -50,7 +50,13 @@ void Renderer::setPath(const std::string path)
 
 void Renderer::setupMain()
 {
-    networkManager->beginClient(std::bind(&Renderer::handleResponse, this, std::placeholders::_1, std::placeholders::_2));
+    networkManager->beginClient(std::bind(&Renderer::handleResponse, this, std::placeholders::_1, std::placeholders::_2), [=](const std::string name, const std::string& data)
+    {
+        mainThreadQueue->push([=]()
+        {
+            setupReceive(name, data);
+        });
+    });
 }
 
 void Renderer::setupReceive(const std::string name, const std::string& data)

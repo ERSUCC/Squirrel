@@ -191,7 +191,7 @@ void NetworkManager::beginService(const std::function<void(const std::string)> h
     });
 }
 
-void NetworkManager::beginClient(const std::function<void(const std::string, const std::string)> handleResponse)
+void NetworkManager::beginClient(const std::function<void(const std::string, const std::string)> handleResponse, const std::function<void(const std::string, const std::string&)> handleReceive)
 {
     serviceSocket = newTCPSocket();
 
@@ -227,6 +227,19 @@ void NetworkManager::beginClient(const std::function<void(const std::string, con
                         if (name && ip)
                         {
                             handleResponse(name.value(), ip.value());
+                        }
+
+                        else
+                        {
+                            errorHandler->handle(SquirrelSocketException("Invalid message format."));
+                        }
+                    }
+
+                    else if (type == "receive")
+                    {
+                        if (const std::optional<std::string> ip = message->data->getProperty("ip")->asString())
+                        {
+                            beginReceive(ip.value(), handleReceive);
                         }
 
                         else
@@ -424,6 +437,24 @@ void NetworkManager::beginReceive(const std::string ip, const std::function<void
             return;
         }
     });
+}
+
+bool NetworkManager::signalReceive(const std::string ip) const
+{
+    const Message* message = new Message(new JSONObject(
+    {
+        { "type", new JSONString("receive") },
+        { "ip", new JSONString(ip) }
+    }));
+
+    if (!serviceSocket->socketSend(message))
+    {
+        errorHandler->handle(SquirrelSocketException("Failed to send message to service."));
+
+        return false;
+    }
+
+    return true;
 }
 
 #ifdef _WIN32

@@ -54,10 +54,12 @@ struct NetworkManager
     virtual std::string convertAddress(const unsigned int address) const = 0;
 
     void beginService(const std::function<void(const std::string)> handleConnect);
-    void beginClient(const std::function<void(const std::string, const std::string)> handleResponse);
+    void beginClient(const std::function<void(const std::string, const std::string)> handleResponse, const std::function<void(const std::string, const std::string&)> handleReceive);
     void beginConnect(const std::string ip);
     void beginTransfer(const std::filesystem::path path, const std::string ip);
     void beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive);
+
+    bool signalReceive(const std::string ip) const;
 
 protected:
     ErrorHandler* errorHandler;

@@ -26,11 +26,14 @@ int init(const int argc, char** argv, MainThreadQueue* mainThreadQueue, ErrorHan
     {
         networkManager->beginService([=](const std::string ip)
         {
-            std::vector<std::string> args = { "--receive", ip };
-
-            if (!processManager->createProcess(args))
+            if (!networkManager->signalReceive(ip))
             {
-                errorHandler->handle(SquirrelException("Failed to create process."));
+                std::vector<std::string> args = { "--receive", ip };
+
+                if (!processManager->createProcess(args))
+                {
+                    errorHandler->handle(SquirrelException("Failed to create process."));
+                }
             }
         });
 
