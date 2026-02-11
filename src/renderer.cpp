@@ -124,6 +124,23 @@ void Renderer::render()
 {
     renderLock.lock();
 
+    size_t i = 0;
+
+    while (i < targets.size())
+    {
+        if ((clock.now() - targets[i]->lastPing).count() > 5e9)
+        {
+            root->removeObject(targets[i]->object);
+
+            targets.erase(targets.begin() + i);
+        }
+
+        else
+        {
+            i++;
+        }
+    }
+
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
@@ -154,10 +171,12 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
 {
     renderLock.lock();
 
-    if (std::find_if(targets.begin(), targets.end(), [=](const Target* target)
+    const std::vector<Target*>::const_iterator found = std::find_if(targets.begin(), targets.end(), [=](const Target* target)
     {
         return target->name == name && target->ip == ip;
-    }) == targets.end())
+    });
+
+    if (found == targets.end())
     {
         StackLayout* layout = new StackLayout(renderer);
 
@@ -208,7 +227,16 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
         root->addObject(layout, Sizing::Stretch, Sizing::Fixed);
         root->layout();
 
-        targets.push_back(new Target(layout, name, ip));
+        Target* target = new Target(layout, name, ip);
+
+        target->lastPing = clock.now();
+
+        targets.push_back(target);
+    }
+
+    else
+    {
+        (*found)->lastPing = clock.now();
     }
 
     renderLock.unlock();

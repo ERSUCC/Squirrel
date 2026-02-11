@@ -56,7 +56,7 @@ struct Layout : public GUIObject
     void setBackgroundColor(const SDL_Color color);
 
     void addObject(GUIObject* object, const Sizing horizontalSizing, const Sizing verticalSizing);
-    void removeObject(GUIObject* object);
+    void removeObject(const GUIObject* object);
 
 protected:
     std::vector<LayoutObject*> objects;

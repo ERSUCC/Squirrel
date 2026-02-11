@@ -28,6 +28,8 @@ struct Target
 
     const std::string name;
     const std::string ip;
+
+    std::chrono::time_point<std::chrono::high_resolution_clock> lastPing;
 };
 
 struct Renderer

@@ -74,7 +74,7 @@ void Layout::addObject(GUIObject* object, const Sizing horizontalSizing, const S
     objects.push_back(new LayoutObject(object, horizontalSizing, verticalSizing));
 }
 
-void Layout::removeObject(GUIObject* object)
+void Layout::removeObject(const GUIObject* object)
 {
     for (unsigned int i = 0; i < objects.size(); i++)
     {
