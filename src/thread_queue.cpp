@@ -3,18 +3,18 @@
 MainThreadQueue::MainThreadQueue() :
     mainThread(std::this_thread::get_id()) {}
 
-void MainThreadQueue::push(std::function<void()> function)
+void MainThreadQueue::push(const Action action)
 {
     if (std::this_thread::get_id() == mainThread)
     {
-        functions.push(function);
+        actions.push(action);
     }
 
     else
     {
         lock.lock();
 
-        functions.push(function);
+        actions.push(action);
 
         lock.unlock();
     }
@@ -28,15 +28,15 @@ void MainThreadQueue::execute(const bool block)
 
     if (block)
     {
-        while (functions.empty())
+        while (actions.empty())
         {
             signal.wait(uniqueLock);
         }
     }
 
-    if (!functions.empty())
+    if (!actions.empty())
     {
-        functions.front()();
-        functions.pop();
+        actions.front()();
+        actions.pop();
     }
 }

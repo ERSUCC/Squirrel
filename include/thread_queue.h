@@ -8,15 +8,17 @@
 
 struct MainThreadQueue
 {
+    typedef std::function<void()> Action;
+
     MainThreadQueue();
 
-    void push(std::function<void()> function);
+    void push(const Action action);
     void execute(const bool block);
 
 private:
     const std::thread::id mainThread;
 
-    std::queue<std::function<void()>> functions;
+    std::queue<Action> actions;
 
     std::mutex lock;
     std::condition_variable signal;

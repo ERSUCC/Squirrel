@@ -14,7 +14,7 @@ NetworkManager::NetworkManager(ErrorHandler* errorHandler, const std::string nam
     }
 }
 
-void NetworkManager::beginService(const std::function<void(const std::string)> handleConnect)
+void NetworkManager::beginService(ConnectHandler handleConnect)
 {
     broadcastSocket = newUDPSocket();
 
@@ -191,7 +191,7 @@ void NetworkManager::beginService(const std::function<void(const std::string)> h
     });
 }
 
-void NetworkManager::beginClient(const std::function<void(const std::string, const std::string)> handleResponse, const std::function<void(const std::string, const std::string&)> handleReceive)
+void NetworkManager::beginClient(ResponseHandler handleResponse, ReceiveHandler handleReceive)
 {
     serviceSocket = newTCPSocket();
 
@@ -363,7 +363,7 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
     });
 }
 
-void NetworkManager::beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive)
+void NetworkManager::beginReceive(const std::string ip, ReceiveHandler handleReceive)
 {
     if (transferThread.joinable())
     {

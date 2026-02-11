@@ -9,6 +9,8 @@
 
 struct GUIObject
 {
+    typedef std::function<void()> Action;
+
     GUIObject(SDL_Renderer* renderer);
 
     virtual void render() = 0;
@@ -147,14 +149,14 @@ struct Button : public GUIObject
     void setBackgroundColor(const SDL_Color color);
     void setTextColor(const SDL_Color color);
 
-    void setAction(const std::function<void()> action);
+    void setAction(const Action action);
 
 private:
     Label* label;
 
     SDL_Color backgroundColor = { 0, 0, 0, 0 };
 
-    std::function<void()> action;
+    Action action;
 
     bool isHover = false;
 

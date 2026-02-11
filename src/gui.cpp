@@ -433,7 +433,7 @@ void Button::setTextColor(const SDL_Color color)
     label->setTextColor(color);
 }
 
-void Button::setAction(const std::function<void()> action)
+void Button::setAction(const Action action)
 {
     this->action = action;
 }

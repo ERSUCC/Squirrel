@@ -47,17 +47,21 @@ struct TCPSocket
 
 struct NetworkManager
 {
+    typedef const std::function<void(const::std::string)> ConnectHandler;
+    typedef const std::function<void(const::std::string, const std::string)> ResponseHandler;
+    typedef const std::function<void(const::std::string, const std::string&)> ReceiveHandler;
+
     NetworkManager(ErrorHandler* errorHandler, const std::string name, const std::string address);
 
     virtual unsigned int convertAddress(const std::string address) const = 0;
 
     virtual std::string convertAddress(const unsigned int address) const = 0;
 
-    void beginService(const std::function<void(const std::string)> handleConnect);
-    void beginClient(const std::function<void(const std::string, const std::string)> handleResponse, const std::function<void(const std::string, const std::string&)> handleReceive);
+    void beginService(ConnectHandler handleConnect);
+    void beginClient(ResponseHandler handleResponse, ReceiveHandler handleReceive);
     void beginConnect(const std::string ip);
     void beginTransfer(const std::filesystem::path path, const std::string ip);
-    void beginReceive(const std::string ip, const std::function<void(const std::string, const std::string&)> handleReceive);
+    void beginReceive(const std::string ip, ReceiveHandler handleReceive);
 
     bool signalReceive(const std::string ip) const;
 
