@@ -3,11 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <functional>
-#include <iostream>
 #include <mutex>
-#include <optional>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -22,7 +18,7 @@
 
 struct Target
 {
-    Target(const GUIObject* object, const std::string name, const std::string ip);
+    Target(const GUIObject* object, const std::string& name, const std::string& ip);
 
     const GUIObject* object;
 
@@ -37,10 +33,10 @@ struct Renderer
     Renderer(MainThreadQueue* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager);
     ~Renderer();
 
-    void setPath(const std::string path);
+    void setPath(const std::string& path);
 
     void setupMain();
-    void setupReceive(const std::string name, const std::string& data);
+    void setupReceive(const std::string& name, const std::string& data);
 
     void run();
     void render();
@@ -48,7 +44,7 @@ struct Renderer
     void resized(const unsigned int width, const unsigned int height);
 
 private:
-    void handleResponse(const std::string name, const std::string ip);
+    void handleResponse(const std::string& name, const std::string& ip);
 
     std::mutex renderLock;
 

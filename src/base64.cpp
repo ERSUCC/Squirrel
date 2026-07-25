@@ -1,12 +1,14 @@
 #include "../include/base64.h"
 
-std::string Base64::encode(const std::string str)
+#define ALPHABET "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+std::string Base64::encode(const std::string& str)
 {
-    const unsigned int truncated = str.size() - (str.size() % 3);
+    const size_t truncated = str.size() - (str.size() % 3);
 
     std::string result;
 
-    for (unsigned int i = 0; i < truncated; i += 3)
+    for (size_t i = 0; i < truncated; i += 3)
     {
         result += ALPHABET[(str[i] >> 2) & 0b00111111];
         result += ALPHABET[((str[i] & 0b00000011) << 4) | ((str[i + 1] >> 4) & 0b00001111)];
@@ -30,13 +32,13 @@ std::string Base64::encode(const std::string str)
     return result;
 }
 
-std::string Base64::decode(const std::string str)
+std::string Base64::decode(const std::string& str)
 {
-    const unsigned int truncated = str.size() - (str.size() % 4);
+    const size_t truncated = str.size() - (str.size() % 4);
 
     std::string result;
 
-    for (unsigned int i = 0; i < truncated; i += 4)
+    for (size_t i = 0; i < truncated; i += 4)
     {
         result += (base64ToAscii(str[i]) << 2) | ((base64ToAscii(str[i + 1]) >> 4) & 0b00000011);
         result += (base64ToAscii(str[i + 1]) << 4) | ((base64ToAscii(str[i + 2]) >> 2) & 0b00001111);

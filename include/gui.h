@@ -30,7 +30,7 @@ protected:
 
 };
 
-enum Sizing
+enum struct Sizing
 {
     Fixed,
     Stretch
@@ -68,13 +68,13 @@ private:
 
 };
 
-enum Direction
+enum struct Direction
 {
     Horizontal,
     Vertical
 };
 
-enum Anchor
+enum struct Anchor
 {
     Leading,
     Center,
@@ -114,7 +114,7 @@ struct Label : public GUIObject
 
     void setFont(TTF_Font* font);
 
-    void setText(const std::string text);
+    void setText(const std::string& text);
 
     void setTextColor(const SDL_Color color);
 
@@ -144,7 +144,7 @@ struct Button : public GUIObject
 
     void setFont(TTF_Font* font);
 
-    void setText(const std::string text);
+    void setText(const std::string& text);
 
     void setBackgroundColor(const SDL_Color color);
     void setTextColor(const SDL_Color color);

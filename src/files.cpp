@@ -70,7 +70,7 @@ void WinFileManager::getSelectPath(SDL_Window* parent, SelectHandler complete) c
     complete(path);
 }
 
-void WinFileManager::getSavePath(SDL_Window* parent, const std::string name, SelectHandler complete) const
+void WinFileManager::getSavePath(SDL_Window* parent, const std::string& name, SelectHandler complete) const
 {
     SDL_PropertiesID properties = SDL_GetWindowProperties(parent);
 
@@ -139,11 +139,11 @@ void WinFileManager::getSavePath(SDL_Window* parent, const std::string name, Sel
     complete(path);
 }
 
-std::filesystem::path WinFileManager::getResourcePath(const std::string name) const
+std::filesystem::path WinFileManager::getResourcePath(const std::string& name) const
 {
     #ifdef SQUIRREL_RELEASE
 
-    char path[MAX_PATH + 1];
+    char path[MAX_PATH];
 
     if (GetModuleFileName(nullptr, path, MAX_PATH))
     {
@@ -157,15 +157,15 @@ std::filesystem::path WinFileManager::getResourcePath(const std::string name) co
 
 #elif __linux__
 
+#include <stddef.h>
+
 void LinuxFileManager::getSelectPath(SDL_Window* parent, SelectHandler complete) const
 {
-    const std::string cmd = std::string("zenity --file-selection --title \"Select File\"");
-
-    FILE* proc = popen(cmd.c_str(), "r");
+    FILE* proc = popen("zenity --file-selection --title \"Select File\"", "r");
 
     char buffer[PATH_MAX + 1];
 
-    unsigned int read = fread(buffer, sizeof(char), PATH_MAX, proc);
+    size_t read = fread(buffer, sizeof(char), PATH_MAX, proc);
 
     pclose(proc);
 
@@ -181,7 +181,7 @@ void LinuxFileManager::getSelectPath(SDL_Window* parent, SelectHandler complete)
     complete(buffer);
 }
 
-void LinuxFileManager::getSavePath(SDL_Window* parent, const std::string name, SelectHandler complete) const
+void LinuxFileManager::getSavePath(SDL_Window* parent, const std::string& name, SelectHandler complete) const
 {
     const std::string cmd = std::string("zenity --file-selection --save --title \"Save File\" --filename \"") + name + "\"";
 
@@ -189,7 +189,7 @@ void LinuxFileManager::getSavePath(SDL_Window* parent, const std::string name, S
 
     char buffer[PATH_MAX + 1];
 
-    unsigned int read = fread(buffer, sizeof(char), PATH_MAX, proc);
+    size_t read = fread(buffer, sizeof(char), PATH_MAX, proc);
 
     pclose(proc);
 
@@ -205,7 +205,7 @@ void LinuxFileManager::getSavePath(SDL_Window* parent, const std::string name, S
     complete(buffer);
 }
 
-std::filesystem::path LinuxFileManager::getResourcePath(const std::string name) const
+std::filesystem::path LinuxFileManager::getResourcePath(const std::string& name) const
 {
     #ifdef SQUIRREL_RELEASE
 

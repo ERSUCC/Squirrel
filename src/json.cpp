@@ -106,7 +106,7 @@ void JSONObject::serialize(std::stringstream& stream) const
     stream << '}';
 }
 
-const JSONObject* JSONObject::getProperty(const std::string name) const
+const JSONObject* JSONObject::getProperty(const std::string& name) const
 {
     if (properties.count(name))
     {
@@ -121,7 +121,7 @@ std::optional<std::string> JSONObject::asString() const
     return std::nullopt;
 }
 
-JSONString::JSONString(const std::string str) :
+JSONString::JSONString(const std::string& str) :
     JSONObject({}), str(str) {}
 
 JSONString* JSONString::deserialize(std::stringstream& stream)

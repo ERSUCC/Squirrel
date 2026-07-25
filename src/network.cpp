@@ -1,6 +1,6 @@
 #include "../include/network.h"
 
-NetworkManager::NetworkManager(ErrorHandler* errorHandler, const std::string name, const std::string address) :
+NetworkManager::NetworkManager(ErrorHandler* errorHandler, const std::string& name, const std::string& address) :
     errorHandler(errorHandler), name(name), address(address)
 {
     if (name.empty())
@@ -268,7 +268,7 @@ void NetworkManager::beginClient(ResponseHandler handleResponse, ReceiveHandler 
     });
 }
 
-void NetworkManager::beginConnect(const std::string ip)
+void NetworkManager::beginConnect(const std::string& ip)
 {
     const Message* connectMessage = new Message(new JSONObject(
     {
@@ -284,7 +284,7 @@ void NetworkManager::beginConnect(const std::string ip)
     }
 }
 
-void NetworkManager::beginTransfer(const std::filesystem::path path, const std::string ip)
+void NetworkManager::beginTransfer(const std::filesystem::path& path, const std::string& ip)
 {
     const Message* connect = new Message(new JSONObject(
     {
@@ -363,7 +363,7 @@ void NetworkManager::beginTransfer(const std::filesystem::path path, const std::
     });
 }
 
-void NetworkManager::beginReceive(const std::string ip, ReceiveHandler handleReceive)
+void NetworkManager::beginReceive(const std::string& ip, ReceiveHandler handleReceive)
 {
     if (transferThread.joinable())
     {
@@ -439,7 +439,7 @@ void NetworkManager::beginReceive(const std::string ip, ReceiveHandler handleRec
     });
 }
 
-bool NetworkManager::signalReceive(const std::string ip) const
+bool NetworkManager::signalReceive(const std::string& ip) const
 {
     const Message* message = new Message(new JSONObject(
     {
@@ -459,7 +459,7 @@ bool NetworkManager::signalReceive(const std::string ip) const
 
 #ifdef _WIN32
 
-bool WinUDPSocket::create(const std::string address)
+bool WinUDPSocket::create(const std::string& address)
 {
     socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
 
@@ -480,7 +480,7 @@ bool WinUDPSocket::create(const std::string address)
     return setsockopt(socketHandle, IPPROTO_IP, IP_UNICAST_IF, (char*)&addr, sizeof(addr)) != SOCKET_ERROR;
 }
 
-bool WinUDPSocket::socketBind(const std::string address, const unsigned int port) const
+bool WinUDPSocket::socketBind(const std::string& address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -493,7 +493,7 @@ bool WinUDPSocket::socketBind(const std::string address, const unsigned int port
     return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR;
 }
 
-bool WinUDPSocket::socketSend(const Message* message, const std::string address, const unsigned int port) const
+bool WinUDPSocket::socketSend(const Message* message, const std::string& address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -557,7 +557,7 @@ bool WinTCPSocket::create()
     return socketHandle != INVALID_SOCKET;
 }
 
-bool WinTCPSocket::socketBind(const std::string address, const unsigned int port) const
+bool WinTCPSocket::socketBind(const std::string& address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -570,7 +570,7 @@ bool WinTCPSocket::socketBind(const std::string address, const unsigned int port
     return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) != SOCKET_ERROR;
 }
 
-bool WinTCPSocket::socketConnect(const std::string address, const unsigned int port) const
+bool WinTCPSocket::socketConnect(const std::string& address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -697,7 +697,7 @@ WinNetworkManager::~WinNetworkManager()
     WSACleanup();
 }
 
-unsigned int WinNetworkManager::convertAddress(const std::string address) const
+unsigned int WinNetworkManager::convertAddress(const std::string& address) const
 {
     return inet_addr(address.c_str());
 }
@@ -781,7 +781,7 @@ std::string WinNetworkManager::getAddress() const
 
 #else
 
-bool BSDUDPSocket::create(const std::string address)
+bool BSDUDPSocket::create(const std::string& address)
 {
     socketHandle = socket(PF_INET, SOCK_DGRAM, 0);
 
@@ -805,7 +805,7 @@ bool BSDUDPSocket::create(const std::string address)
     return setsockopt(socketHandle, IPPROTO_IP, IP_MULTICAST_IF, &req, sizeof(req)) != -1;
 }
 
-bool BSDUDPSocket::socketBind(const std::string address, const unsigned int port) const
+bool BSDUDPSocket::socketBind(const std::string& address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -818,7 +818,7 @@ bool BSDUDPSocket::socketBind(const std::string address, const unsigned int port
     return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) == 0;
 }
 
-bool BSDUDPSocket::socketSend(const Message* message, const std::string address, const unsigned int port) const
+bool BSDUDPSocket::socketSend(const Message* message, const std::string& address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -877,7 +877,7 @@ bool BSDTCPSocket::create()
     return socketHandle != -1;
 }
 
-bool BSDTCPSocket::socketBind(const std::string address, const unsigned int port) const
+bool BSDTCPSocket::socketBind(const std::string& address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -890,7 +890,7 @@ bool BSDTCPSocket::socketBind(const std::string address, const unsigned int port
     return bind(socketHandle, (sockaddr*)&addr, sizeof(addr)) == 0;
 }
 
-bool BSDTCPSocket::socketConnect(const std::string address, const unsigned int port) const
+bool BSDTCPSocket::socketConnect(const std::string& address, const unsigned int port) const
 {
     sockaddr_in addr;
 
@@ -994,7 +994,7 @@ bool BSDTCPSocket::isAlive() const
 BSDNetworkManager::BSDNetworkManager(ErrorHandler* errorHandler) :
     NetworkManager(errorHandler, getName(), getAddress()) {}
 
-unsigned int BSDNetworkManager::convertAddress(const std::string ip) const
+unsigned int BSDNetworkManager::convertAddress(const std::string& ip) const
 {
     return inet_addr(ip.c_str());
 }

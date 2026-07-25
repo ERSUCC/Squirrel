@@ -6,7 +6,7 @@
 
 #include "errors.h"
 
-enum LaunchType
+enum struct LaunchType
 {
     Service,
     Receive,

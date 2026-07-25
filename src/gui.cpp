@@ -341,7 +341,7 @@ void Label::setFont(TTF_Font* font)
     this->font = font;
 }
 
-void Label::setText(const std::string text)
+void Label::setText(const std::string& text)
 {
     this->text = text;
 }
@@ -418,7 +418,7 @@ void Button::setFont(TTF_Font* font)
     label->setFont(font);
 }
 
-void Button::setText(const std::string text)
+void Button::setText(const std::string& text)
 {
     label->setText(text);
 }

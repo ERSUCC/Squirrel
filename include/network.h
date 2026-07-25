@@ -20,9 +20,9 @@
 
 struct UDPSocket
 {
-    virtual bool create(const std::string address) = 0;
-    virtual bool socketBind(const std::string address, const unsigned int port) const = 0;
-    virtual bool socketSend(const Message* message, const std::string address, const unsigned int port) const = 0;
+    virtual bool create(const std::string& address) = 0;
+    virtual bool socketBind(const std::string& address, const unsigned int port) const = 0;
+    virtual bool socketSend(const Message* message, const std::string& address, const unsigned int port) const = 0;
 
     virtual Message* receive() const = 0;
 
@@ -33,8 +33,8 @@ struct UDPSocket
 struct TCPSocket
 {
     virtual bool create() = 0;
-    virtual bool socketBind(const std::string address, const unsigned int port) const = 0;
-    virtual bool socketConnect(const std::string address, const unsigned int port) const = 0;
+    virtual bool socketBind(const std::string& address, const unsigned int port) const = 0;
+    virtual bool socketConnect(const std::string& address, const unsigned int port) const = 0;
     virtual bool socketListen() const = 0;
     virtual bool socketAccept() = 0;
     virtual bool socketSend(const Message* message) const = 0;
@@ -47,23 +47,23 @@ struct TCPSocket
 
 struct NetworkManager
 {
-    typedef const std::function<void(const::std::string)> ConnectHandler;
-    typedef const std::function<void(const::std::string, const std::string)> ResponseHandler;
-    typedef const std::function<void(const::std::string, const std::string&)> ReceiveHandler;
+    typedef const std::function<void(const std::string&)> ConnectHandler;
+    typedef const std::function<void(const std::string&, const std::string&)> ResponseHandler;
+    typedef const std::function<void(const std::string&, const std::string&)> ReceiveHandler;
 
-    NetworkManager(ErrorHandler* errorHandler, const std::string name, const std::string address);
+    NetworkManager(ErrorHandler* errorHandler, const std::string& name, const std::string& address);
 
-    virtual unsigned int convertAddress(const std::string address) const = 0;
+    virtual unsigned int convertAddress(const std::string& address) const = 0;
 
     virtual std::string convertAddress(const unsigned int address) const = 0;
 
     void beginService(ConnectHandler handleConnect);
     void beginClient(ResponseHandler handleResponse, ReceiveHandler handleReceive);
-    void beginConnect(const std::string ip);
-    void beginTransfer(const std::filesystem::path path, const std::string ip);
-    void beginReceive(const std::string ip, ReceiveHandler handleReceive);
+    void beginConnect(const std::string& ip);
+    void beginTransfer(const std::filesystem::path& path, const std::string& ip);
+    void beginReceive(const std::string& ip, ReceiveHandler handleReceive);
 
-    bool signalReceive(const std::string ip) const;
+    bool signalReceive(const std::string& ip) const;
 
 protected:
     ErrorHandler* errorHandler;
@@ -98,9 +98,9 @@ private:
 
 struct WinUDPSocket : public UDPSocket
 {
-    bool create(const std::string address) override;
-    bool socketBind(const std::string address, const unsigned int port) const override;
-    bool socketSend(const Message* message, const std::string address, const unsigned int port) const override;
+    bool create(const std::string& address) override;
+    bool socketBind(const std::string& address, const unsigned int port) const override;
+    bool socketSend(const Message* message, const std::string& address, const unsigned int port) const override;
 
     Message* receive() const override;
 
@@ -115,8 +115,8 @@ private:
 struct WinTCPSocket : public TCPSocket
 {
     bool create() override;
-    bool socketBind(const std::string address, const unsigned int port) const override;
-    bool socketConnect(const std::string address, const unsigned int port) const override;
+    bool socketBind(const std::string& address, const unsigned int port) const override;
+    bool socketConnect(const std::string& address, const unsigned int port) const override;
     bool socketListen() const override;
     bool socketAccept() override;
     bool socketSend(const Message* message) const override;
@@ -136,7 +136,7 @@ struct WinNetworkManager : public NetworkManager
     WinNetworkManager(ErrorHandler* errorHandler);
     ~WinNetworkManager();
 
-    unsigned int convertAddress(const std::string address) const override;
+    unsigned int convertAddress(const std::string& address) const override;
 
     std::string convertAddress(const unsigned int address) const override;
 
@@ -159,9 +159,9 @@ protected:
 
 struct BSDUDPSocket : public UDPSocket
 {
-    bool create(const std::string address) override;
-    bool socketBind(const std::string address, const unsigned int port) const override;
-    bool socketSend(const Message* message, const std::string address, const unsigned int port) const override;
+    bool create(const std::string& address) override;
+    bool socketBind(const std::string& address, const unsigned int port) const override;
+    bool socketSend(const Message* message, const std::string& address, const unsigned int port) const override;
 
     Message* receive() const override;
 
@@ -176,8 +176,8 @@ private:
 struct BSDTCPSocket : public TCPSocket
 {
     bool create() override;
-    bool socketBind(const std::string address, const unsigned int port) const override;
-    bool socketConnect(const std::string address, const unsigned int port) const override;
+    bool socketBind(const std::string& address, const unsigned int port) const override;
+    bool socketConnect(const std::string& address, const unsigned int port) const override;
     bool socketListen() const override;
     bool socketAccept() override;
     bool socketSend(const Message* message) const override;
@@ -196,7 +196,7 @@ struct BSDNetworkManager : public NetworkManager
 {
     BSDNetworkManager(ErrorHandler* errorHandler);
 
-    unsigned int convertAddress(const std::string address) const override;
+    unsigned int convertAddress(const std::string& address) const override;
 
     std::string convertAddress(const unsigned int address) const override;
 

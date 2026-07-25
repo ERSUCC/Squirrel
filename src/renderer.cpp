@@ -1,6 +1,6 @@
 #include "renderer.h"
 
-Target::Target(const GUIObject* object, const std::string name, const std::string ip) :
+Target::Target(const GUIObject* object, const std::string& name, const std::string& ip) :
     object(object), name(name), ip(ip) {}
 
 Renderer::Renderer(MainThreadQueue* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager) :
@@ -43,14 +43,14 @@ Renderer::~Renderer()
     SDL_Quit();
 }
 
-void Renderer::setPath(const std::string path)
+void Renderer::setPath(const std::string& path)
 {
     this->path = path;
 }
 
 void Renderer::setupMain()
 {
-    networkManager->beginClient(std::bind(&Renderer::handleResponse, this, std::placeholders::_1, std::placeholders::_2), [=](const std::string name, const std::string& data)
+    networkManager->beginClient(std::bind(&Renderer::handleResponse, this, std::placeholders::_1, std::placeholders::_2), [=](const std::string& name, const std::string& data)
     {
         mainThreadQueue->push([=]()
         {
@@ -59,9 +59,9 @@ void Renderer::setupMain()
     });
 }
 
-void Renderer::setupReceive(const std::string name, const std::string& data)
+void Renderer::setupReceive(const std::string& name, const std::string& data)
 {
-    fileManager->getSavePath(window, name, [=](const std::filesystem::path selected)
+    fileManager->getSavePath(window, name, [=](const std::filesystem::path& selected)
     {
         std::ofstream file(selected, std::ios::binary);
 
@@ -173,7 +173,7 @@ void Renderer::resized(const unsigned int width, const unsigned int height)
     renderLock.unlock();
 }
 
-void Renderer::handleResponse(const std::string name, const std::string ip)
+void Renderer::handleResponse(const std::string& name, const std::string& ip)
 {
     renderLock.lock();
 
@@ -213,7 +213,7 @@ void Renderer::handleResponse(const std::string name, const std::string ip)
         {
             if (path.empty())
             {
-                fileManager->getSelectPath(window, [=](const std::filesystem::path selected)
+                fileManager->getSelectPath(window, [=](const std::filesystem::path& selected)
                 {
                     if (std::filesystem::exists(selected))
                     {

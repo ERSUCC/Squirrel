@@ -1,9 +1,9 @@
 #pragma once
 
-#include <cstring>
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string.h>
 #include <unordered_map>
 
 struct JSONObject
@@ -14,7 +14,7 @@ struct JSONObject
 
     virtual void serialize(std::stringstream& stream) const;
 
-    const JSONObject* getProperty(const std::string name) const;
+    const JSONObject* getProperty(const std::string& name) const;
 
     virtual std::optional<std::string> asString() const;
 
@@ -25,7 +25,7 @@ private:
 
 struct JSONString : public JSONObject
 {
-    JSONString(const std::string str);
+    JSONString(const std::string& str);
 
     static JSONString* deserialize(std::stringstream& stream);
 

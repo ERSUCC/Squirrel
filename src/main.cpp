@@ -6,10 +6,8 @@
 #include "../include/files.h"
 #include "../include/sprocess.h"
 
-#include <functional>
-#include <iostream>
-#include <optional>
 #include <string>
+#include <vector>
 
 int init(const int argc, char** argv, MainThreadQueue* mainThreadQueue, ErrorHandler* errorHandler, NetworkManager* networkManager, FileManager* fileManager, ProcessManager* processManager)
 {
@@ -24,7 +22,7 @@ int init(const int argc, char** argv, MainThreadQueue* mainThreadQueue, ErrorHan
 
     if (flags->type == LaunchType::Service)
     {
-        networkManager->beginService([=](const std::string ip)
+        networkManager->beginService([=](const std::string& ip)
         {
             if (!networkManager->signalReceive(ip))
             {
@@ -47,7 +45,7 @@ int init(const int argc, char** argv, MainThreadQueue* mainThreadQueue, ErrorHan
     {
         Renderer* renderer = new Renderer(mainThreadQueue, errorHandler, networkManager, fileManager);
 
-        networkManager->beginReceive(flags->ip, [=](const std::string name, const std::string& data)
+        networkManager->beginReceive(flags->ip, [=](const std::string& name, const std::string& data)
         {
             mainThreadQueue->push([=]()
             {
@@ -73,6 +71,9 @@ int init(const int argc, char** argv, MainThreadQueue* mainThreadQueue, ErrorHan
 
 #ifdef _WIN32
 
+#include <stdlib.h>
+#include <wchar.h>
+
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
     AllocConsole(); // remove after adding error dialogs
@@ -86,7 +87,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
     FileManager* fileManager = new WinFileManager();
     ProcessManager* processManager = new WinProcessManager(errorHandler);
 
-    if (wcsnlen(pCmdLine, 1) > 0)
+    if (pCmdLine != L"")
     {
         int argc = 0;
 
@@ -94,9 +95,9 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
 
         char** argvChar = (char**)malloc(sizeof(char*) * argc);
 
-        for (unsigned int i = 0; i < argc; i++)
+        for (int i = 0; i < argc; i++)
         {
-            unsigned int length = wcstombs(nullptr, argv[i], 0);
+            int length = wcstombs(nullptr, argv[i], 0);
 
             argvChar[i] = (char*)malloc(sizeof(char) * length);
 

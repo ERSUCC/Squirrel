@@ -53,11 +53,11 @@ if(WIN32)
     install(FILES "C:/Program Files/SDL3_ttf/lib/x64/SDL3_ttf.dll" DESTINATION .)
     install(FILES resources/fonts/OpenSans-Variable.ttf DESTINATION resources/fonts)
 elseif(APPLE)
-    target_include_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl3/3.2.22/include"
-                                                "/opt/homebrew/Cellar/sdl3/3.2.22/include/SDL3"
+    target_include_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl3/3.4.12/include"
+                                                "/opt/homebrew/Cellar/sdl3/3.4.12/include/SDL3"
                                                 "/opt/homebrew/Cellar/sdl3_ttf/3.2.2/include/SDL3_ttf")
 
-    target_link_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl3/3.2.22/lib"
+    target_link_directories(squirrel PRIVATE "/opt/homebrew/Cellar/sdl3/3.4.12/lib"
                                              "/opt/homebrew/Cellar/sdl3_ttf/3.2.2/lib")
 
     target_link_libraries(squirrel "-framework CoreFoundation" "-framework AppKit" sdl3 sdl3_ttf)

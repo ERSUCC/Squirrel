@@ -1,7 +1,6 @@
 #pragma once
 
 #include <exception>
-#include <functional>
 #include <iostream>
 #include <string>
 
@@ -9,7 +8,7 @@
 
 struct SquirrelException : public std::exception
 {
-    SquirrelException(const std::string message);
+    SquirrelException(const std::string& message);
 
     const char* what() const noexcept override;
 
@@ -20,17 +19,17 @@ private:
 
 struct SquirrelArgumentException : public SquirrelException
 {
-    SquirrelArgumentException(const std::string message);
+    SquirrelArgumentException(const std::string& message);
 };
 
 struct SquirrelSocketException : public SquirrelException
 {
-    SquirrelSocketException(const std::string message);
+    SquirrelSocketException(const std::string& message);
 };
 
 struct SquirrelFileException : public SquirrelException
 {
-    SquirrelFileException(const std::string message);
+    SquirrelFileException(const std::string& message);
 };
 
 struct ErrorHandler

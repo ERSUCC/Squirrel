@@ -42,7 +42,7 @@ void MacFileManager::getSelectPath(SDL_Window* parent, SelectHandler complete) c
     } ];
 }
 
-void MacFileManager::getSavePath(SDL_Window* parent, const std::string name, SelectHandler complete) const
+void MacFileManager::getSavePath(SDL_Window* parent, const std::string& name, SelectHandler complete) const
 {
     SDL_PropertiesID properties = SDL_GetWindowProperties(parent);
 
@@ -81,7 +81,7 @@ void MacFileManager::getSavePath(SDL_Window* parent, const std::string name, Sel
     } ];
 }
 
-std::filesystem::path MacFileManager::getResourcePath(const std::string name) const
+std::filesystem::path MacFileManager::getResourcePath(const std::string& name) const
 {
     #ifdef SQUIRREL_RELEASE
 
